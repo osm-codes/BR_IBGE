@@ -15,18 +15,16 @@ CREATE SCHEMA IF NOT EXISTS grid_ibge;
 CREATE TABLE grid_ibge.censo2010_info (
   gid bigint NOT NULL PRIMARY KEY,  --
   pop int NOT NULL,   --
-  pop_fem_perc smallint NOT NULL, -- CHECK(pop_fem_perc BETWEEN 0 AND 100), 
+  pop_fem_perc smallint NOT NULL, -- CHECK(pop_fem_perc BETWEEN 0 AND 100),
   dom_ocu smallint NOT NULL
 );
 COMMENT ON TABLE grid_ibge.censo2010_info
   IS 'Informações do Censo de 2010 organizadas pela Grade Estatística do IBGE, com células codificadas em 4+30+30 bits do identificador gid'
 ;
-COMMENT ON COLUMN grid_ibge.censo2010_info.gid IS 'ID com informação embutida, nível da grade e centroide da célula';
-COMMENT ON COLUMN grid_ibge.censo2010_info.pop IS 'população total dentro da célula';
-COMMENT ON COLUMN grid_ibge.censo2010_info.pop_fem_perc IS 'percentual da população feminina';
-COMMENT ON COLUMN grid_ibge.censo2010_info.dom_ocu IS 'xxxx';
-
-
+COMMENT ON COLUMN grid_ibge.censo2010_info.gid IS 'ID com informação embutida (4 bits do nível da grade e 60 bits para XY do centroide da célula)';
+COMMENT ON COLUMN grid_ibge.censo2010_info.pop IS 'População total dentro da célula';
+COMMENT ON COLUMN grid_ibge.censo2010_info.pop_fem_perc IS 'Percentual da população feminina';
+COMMENT ON COLUMN grid_ibge.censo2010_info.dom_ocu IS 'Domicílios ocupados - particulares permanentes, particulares improvisados e coletivos';
 
 ------
 

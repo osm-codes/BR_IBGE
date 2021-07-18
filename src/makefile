@@ -1,3 +1,8 @@
+##
+## Grade Estatística IBGE, downloads e construção da sua Representação Compacta
+##
+
+pg_uri=postgres://postgres@localhost
 pg_db=ibge
 
 info:
@@ -28,25 +33,25 @@ grid_alt1_clean: grid_alt1_clean_sql grid_alt1_clean_files
 ## Concrete builder targets:
 
 sql_prepare:
-	psql postgres://postgres@localhost -c "CREATE DATABASE $(pg_db)"
-	psql postgres://postgres@localhost/$(pg_db) < step2_pubLib.sql
+	psql $(pg_uri) -c "CREATE DATABASE $(pg_db)"
+	psql $(pg_uri)/$(pg_db) < step2_pubLib.sql
 
 grid_orig_get:
 	sh step1_download_IBGE.sh
 	sh step3_build_IBGE.sh
 
 grid_alt1_fromOrig:
-	psql postgres://postgres@localhost/$(pg_db) < step4_prepareGridLibs.sql
-	psql postgres://postgres@localhost/$(pg_db) < step5opt1_fromOriginal.sql
-	psql postgres://postgres@localhost/$(pg_db) < step6_asserts.sql
+	psql $(pg_uri)/$(pg_db) < step4_prepareGridLibs.sql
+	psql $(pg_uri)/$(pg_db) < step5opt1_fromOriginal.sql
+	psql $(pg_uri)/$(pg_db) < step6_asserts.sql
 
 grid_alt2_fromZip: ../../data/BR_IBGE/grid_ibge_censo2010_info.zip
 	@echo "recuperando dados do git no PostgreSQL"
-	psql postgres://postgres@localhost/$(pg_db) < step4_prepareGridLibs.sql
+	psql $(pg_uri)/$(pg_db) < step4_prepareGridLibs.sql
 	unzip -d /tmp  ../../data/BR_IBGE/grid_ibge_censo2010_info.zip
-	psql postgres://postgres@localhost/$(pg_db) < step5opt2_fromCsv.sql
+	psql $(pg_uri)/$(pg_db) < step5opt2_fromCsv.sql
 	rm -f /tmp/grid_ibge_censo2010_info.csv
-	psql postgres://postgres@localhost/$(pg_db) < step6_asserts.sql
+	psql $(pg_uri)/$(pg_db) < step6_asserts.sql
 
 ## Concrete optional targets:
 grid_alt1_checksums:
@@ -57,9 +62,9 @@ grid_alt1_checksums:
 
 grid_alt1_toZip:
 	@echo "-- creating CSV and ZIP of new grid:"
-	psql postgres://postgres@localhost/$(pg_db) -c "CREATE extension IF NOT EXISTS adminpack"
-	psql postgres://postgres@localhost/$(pg_db) -c "SELECT pg_catalog.pg_file_unlink('/tmp/grid_ibge_censo2010_info.csv') AS rm_csv_file"
-	psql postgres://postgres@localhost/$(pg_db) -c "COPY grid_ibge.censo2010_info TO '/tmp/grid_ibge_censo2010_info.csv' CSV HEADER"
+	psql $(pg_uri)/$(pg_db) -c "CREATE extension IF NOT EXISTS adminpack"
+	psql $(pg_uri)/$(pg_db) -c "SELECT pg_catalog.pg_file_unlink('/tmp/grid_ibge_censo2010_info.csv') AS rm_csv_file"
+	psql $(pg_uri)/$(pg_db) -c "COPY grid_ibge.censo2010_info TO '/tmp/grid_ibge_censo2010_info.csv' CSV HEADER"
 	rm -f /tmp/grid_ibge_censo2010_info.zip
 	zip -j /tmp/grid_ibge_censo2010_info.zip /tmp/grid_ibge_censo2010_info.csv
 	@echo "Saved zip at /tmp"
@@ -68,7 +73,7 @@ grid_alt1_toZip:
 
 grid_alt1_clean_sql:
 	@echo "Drops the original grid tables, remaining only the compact one"
-	psql postgres://postgres@localhost/$(pg_db) < step6_dropOldIBGE.sql
+	psql $(pg_uri)/$(pg_db) < step6_dropOldIBGE.sql
 
 grid_alt1_clean_files:
 	@echo "Delete the original grid shapefiles"

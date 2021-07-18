@@ -1,4 +1,4 @@
-# Grade Estatística IBGE
+# Grade Estatística IBGE em Representação Compacta
 
 <img align="right" src="assets/BR_IBGE-articulacao.320px.png">
 
@@ -7,12 +7,13 @@ Sumário:
 * [CONVENÇÕES DO IBGE](#convenções-do-ibge)
     * [Estrutura das tabelas](#estrutura-das-tabelas)
     * [Nomenclatura das células](#nomenclatura-das-células)
+* [DECISÕES DE PROJETO](#decisões-de-projeto)    
 * [ALGORITMOS IMPLANTADOS](#algoritmos-implantados)
     * [Resolução dos identificadores de célula](#resolução-dos-identificadores-de-célula)
     * [Resolução de ponto em célula](#resolução-de-ponto-em-célula)
     * [Adaptações para outros países](#adaptações-para-outros-países)
 * [BIBLIOTECA](#biblioteca)
-    * API
+    * [API](#api)
 * [INSTALAÇÃO](#instalação)
     * [Instalando somente o zip](#instalando-somente-o-zip)
     * [Reproduzindo o processo completo](#reproduzindo-o-processo-completo)
@@ -106,6 +107,18 @@ ORDER BY 1;
 O algoritmo foi validado contra células de 200m (flag `is_200m`) e 1km. conforme `id_unico`.  Para as células de 200m foram validadas as coordenadas "X_centro-100" e "Y_centro+100", para células de 1km as coordenadas "X_centro-500" e "Y_centro-500".
 
 A mesma heuristca pode ser utilizada para a recuperação de dados a partir do identificador IBGE das células de 200 m e de 1 km. A generalização para células maiores (10 km, 50 km etc.) requer uma avaliação mais detalhada, a seguir.
+
+# DECISÕES DE PROJETO
+
+Mesmo sendo uma reprodução fiel e completa da grade original, alinhada aos [objetivos](#grade-estatística-ibge-em-representação-compacta) apresentados acima, algumas decisões são arbitrárias e se tornam convenções, que não podem ser revisadas depois de homologada a proposta:
+
+* Níveis hierárquicos numerados de 0 a 6: zero é o quadrante de origem, 1 a 6 são os níveis de subdivisão.
+
+* Informação embutida no *gid* de 64 bits: 1+3 bits para o nível hierárquico (primeiro bit em zero para inteiros positivos), 60 bits para as coordenadas Albers arredondadas (por hora opção de mulplicicar por 10 para incluir primeira casa decimal), 30 bits para X10 e 30 para Y10.
+
+* Uso do centro da célula no *gid*: ao invés de preservar fielmente as convenções de coordenada do rótulo `nome_*` original, privilejar a indexação pelo centro geométrico, tendo em vista que os algoritmos de busca se baseiam hipóteses de uniformidade. Aparentemente os valores exatos são os arredondados, para todas as escalas.
+
+* Valores `fem` e `masc` arredondados: por serem antigos e mais imprecisos que `pop`, não nos preocupamos com a precisão em arredondamentos.
 
 # ALGORITMOS IMPLANTADOS
 
@@ -357,3 +370,23 @@ A tabela da nova grade pode ainda ser gravada como CSV,
 COPY grid_ibge.censo2010_info TO '/tmp/grid_ibge_censo2010_info.csv' CSV HEADER;
 ```
 Se por acaso o IBGE gerar uma nova versão da grade original, o arquivo CSV deve então ser zipado com o comando `zip` Linux e gravado no presente repositório *git*, na pasta [/data/BR_IBGE](https://github.com/AddressForAll/grid-tests/tree/main/data/BR_IBGE).
+
+### Compatibilidade
+
+Use `make` na pasta `/src`  para ver instruções e rodar _targets_ desejados.
+O software foi testado com as seguintes versões e configurações:
+
+* PostgreSQL v12 ou v13, e PostGIS v3. Disponível em *localhost* como service. Rodar make com outra `pg_uri` se o usuário não for *postgres*
+
+* `psql` v13. Configurado no `makefile` para rodar já autenticado pelo usuário do terminal .
+
+* pastas *default*: rodar o `make` a partir da própria pasta *git*, `/src/BR_new`. Geração de arquivos pelo servidor local PostgreSQL em `/tmp/pg_io`.
+
+Para testes pode-se usar `git clone https://git.osm.codes/BR_IBGE.git` ou uma versão específica zipada, por exemplo `wget -c https://git.osm.codes/BR_IBGE/archive/refs/tags/`. Em seguida, estes seriam os procedimentos básicos para rodar o *make* em terminal *bash*, por exemplo:
+```sh
+cd grid-tests/src/BR_new
+make
+```
+
+O `make` sem target vai apnas listar as opções. Para rodar um target específico usar `make nomeTarget`.
+Para rodar com outra base ou outra URI de conexão com PostreSQL server, usar por exemplo <br/>`make db=outraBase pg_uri=outraConexao nomeTarget`.
