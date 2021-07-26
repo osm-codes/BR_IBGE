@@ -5,37 +5,76 @@
 -- -- -- -- -- -- -- -- -- -- --
 -- Processo de ingestão completo:
 
-CREATE or replace FUNCTION grid_ibge.censo2010_info_load(p_tabgrade text) RETURNS text AS $f$
+CREATE or replace FUNCTION grid_ibge.censo2010_info_load(
+  p_tabgrade text,
+  p_add_levels boolean DEFAULT false
+) RETURNS text AS $f$
 DECLARE
-  q0 text;
   r0 int;
+  nivel int;
+  q0 text;
+  qsub text :='';
 BEGIN
   RAISE NOTICE ' Processando % ...', p_tabgrade;
+  FOR nivel IN REVERSE 4..0 LOOP
+    -- sumarização para agregar grades mais grosseiras:
+    qsub := qsub  ||  format($$
+      UNION ALL
+      SELECT grid_ibge.name_to_gid(nome) as gid,
+             pop::int,
+             round(CASE WHEN pop>0 THEN 100.0::real*fem/pop ELSE 0.0 END)::smallint AS pop_fem_perc,
+             dom_ocu, true AS is_cache
+      FROM (
+        SELECT %2$s as nome,
+               SUM(pop)::real pop, SUM(fem)::real fem, SUM(dom_ocu)::int dom_ocu
+        FROM %1$s GROUP BY 1
+      ) core_%2$s
+    $$,
+    p_tabgrade,
+    'nome_'||lower(grid_ibge.level_to_prefix( nivel )) -- nome da coluna de sumarização
+    );
+  END LOOP; -- qsub
+
   q0 := $$
-   coredata AS (
-    SELECT quadrante, pop,
+   WITH coredata AS (
+    SELECT grid_ibge.name_to_gid(id_unico) as gid,
+         id_unico, quadrante, pop,
+         nome_1km, nome_5km, nome_10km, nome_50km, nome_100km, nome_500km, fem,
          substr(id_unico,1,4)='200M' AS is_200m,
          round(CASE WHEN pop>0 THEN 100.0*fem::real/pop::real ELSE 0.0 END)::smallint AS pop_fem_perc,
          dom_ocu,
-         ST_X(geom2)::real gx, ST_Y(geom2)::real gy,
-         geom
-    FROM (
-     SELECT *, ST_Transform( ST_Centroid(geom), 952019 ) AS geom2 FROM tg
-    ) t
+         false is_cache
+    FROM  %3$s
    ),
    ins AS (
-   INSERT INTO grid_ibge.censo2010_info(gid, pop, pop_fem_perc, dom_ocu)
-     SELECT grid_ibge.coordinate_encode(gx,gy,is_200m), pop, pop_fem_perc, dom_ocu::smallint
+   INSERT INTO grid_ibge.censo2010_info(gid, pop, pop_fem_perc, dom_ocu, is_cache)
+     SELECT gid, pop, pop_fem_perc, dom_ocu, is_cache
      FROM coredata
+
+     UNION ALL
+     -- complementando o 1km:
+     SELECT grid_ibge.name_to_gid(nome_1km) as gid,
+            pop::int,
+            round(CASE WHEN pop>0 THEN 100.0::real*fem/pop ELSE 0.0 END)::smallint AS pop_fem_perc,
+            dom_ocu, true AS is_cache -- complementing is cache
+     FROM (
+       SELECT nome_1km,
+              SUM(pop)::real pop, SUM(fem)::real fem, SUM(dom_ocu)::int dom_ocu
+       FROM %3$s
+       WHERE %1$s AND nome_1km!=id_unico -- only complementing
+       GROUP BY nome_1km
+     ) core_200m
+     --- UNIONS qsub para grades mais grosseiras:
+     %2$s
+     --------------------------------------------
      ORDER BY 1
    RETURNING 1
    )
    SELECT COUNT(*) FROM ins
  $$;
- EXECUTE format(
-    'WITH tg AS (SELECT * FROM %s), %s'
-    ,  p_tabgrade, q0
- ) INTO r0;
+ q0 = format(q0,  p_add_levels::text,  CASE WHEN p_add_levels THEN qsub ELSE '' END, p_tabgrade);
+ --RAISE NOTICE 'SQL = %', format( 'WITH tg AS (SELECT * FROM %s), %s',  p_tabgrade, q0);
+ EXECUTE q0 INTO r0;
  -- ... and EXECUTE DROP!
  RETURN p_tabgrade||': '|| r0::text || ' itens inseridos';
 END;
@@ -53,7 +92,9 @@ CREATE or replace VIEW vw_tmp_ibgetabs AS
 --- INGESTÃO:
 
 DELETE FROM grid_ibge.censo2010_info; -- is a refresh, ignores old data.
-SELECT grid_ibge.censo2010_info_load(table_name) FROM vw_tmp_ibgetabs;
+
+--SELECT grid_ibge.censo2010_info_load('grade_id04',true);  -- false para basico
+SELECT grid_ibge.censo2010_info_load(table_name,true) as msg FROM vw_tmp_ibgetabs;
 
 -- Volumetria comparativa:
 SELECT resource, tables, tot_bytes, pg_size_pretty(tot_bytes) tot_size,
@@ -70,7 +111,7 @@ FROM (
 ) t;
 
 -- Células por nível:
-SELECT grid_ibge.level_decode(gid) as nivel, COUNT(*) n_compact_cells
+SELECT grid_ibge.gid_to_level(gid) as nivel, COUNT(*) n_compact_cells
 FROM grid_ibge.censo2010_info
 GROUP BY 1 ORDER BY 1;
 
@@ -79,8 +120,8 @@ GROUP BY 1 ORDER BY 1;
 REFRESH MATERIALIZED VIEW  grid_ibge.mvw_censo2010_info_Xsearch;
 REFRESH MATERIALIZED VIEW  grid_ibge.mvw_censo2010_info_Ysearch;
 
-SELECT min(x10) x10_min, max(x10) x10_max FROM grid_ibge.mvw_censo2010_info_Xsearch;
-SELECT min(y10) y10_min, max(y10) y10_max FROM grid_ibge.mvw_censo2010_info_Ysearch;
+SELECT min(x) x_min, max(x) x_max FROM grid_ibge.mvw_censo2010_info_Xsearch;
+SELECT min(y) y_min, max(y) y_max FROM grid_ibge.mvw_censo2010_info_Ysearch;
 
 -----------
 -- LIMPEZA:

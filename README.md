@@ -12,11 +12,8 @@ Sumário:
     * [Resolução dos identificadores de célula](#resolução-dos-identificadores-de-célula)
     * [Resolução de ponto em célula](#resolução-de-ponto-em-célula)
     * [Adaptações para outros países](#adaptações-para-outros-países)
-* [BIBLIOTECA](#biblioteca)
-    * [API](#api)
-* [INSTALAÇÃO](#instalação)
-    * [Instalando somente o zip](#instalando-somente-o-zip)
-    * [Reproduzindo o processo completo](#reproduzindo-o-processo-completo)
+* [API](#api)
+* [INSTALAÇÃO, COMPATIBILIDADE, BIBLIOTECA, ETC](#instalação,-compatibilidade,-biblioteca,-etc)
 
 ------------
 
@@ -138,101 +135,45 @@ Com rótulo e geometria compactados em um simples inteiro de 64 bits (*bigint* n
 
 Column         |   Type   | Comments
 ---------------|----------|--------------
-`gid`          | bigint  NOT NULL PRIMARY KEY | coordenadas (`x*10`,`y*10`) do centroide de celula, formatadas como dois números de 30 bits concatenados.
+`gid`          | bigint  NOT NULL PRIMARY KEY | "Geometric IDentifier" com informação embutida (4 bits do nível da grade e ~60 bits para o ponto XY de referência da célula)
 `pop`          | integer  NOT NULL| população total dentro da célula.
 `pop_fem_perc` | smallint NOT NULL| percentual da população feminina
 `dom_ocu`      | smallint NOT NULL| domicílios ocupados
 
-O codificador de coordenadas consegue compactar toda a informação de localização do centro da célula em um só número inteiro de 64 bits através das operações *bitwise*, e usando uma máscara de 30 bits. A *query* abaixo destaca a máscara de bits e ilustra a reversibilidade entre o número *xy* e as coordenadas (_x,y_)
+O codificador de coordenadas consegue compactar toda a informação de localização do ponto de referência da célula em um só número inteiro de 64 bits através de operações *bitwise* e aritméticas decimais.
 
-```sql
-SELECT (b'0000000000000000000000000000000000111111111111111111111111111111')::bigint = 1073741823,
-       xy>>30 AS x,
-       xy&1073741823 AS y
-FROM ( SELECT (123456789::bigint<<30) | 987654321::bigint AS xy ) t;
--- Result: true, x=123456789, y=987654321
-```
+...
 
 Como os valores mínimo e máximo das coordenadas XY dos centros de célula de todo o conjunto são, respectivamente, `(2809500,7599500)` e `(7620500,11920500)`, mesmo multiplicando por 10 ainda estão uma ordem de grandeza abaixo de `2^30-1 = 1073741823`. Cabem folgadamente em 30 bits e ainda sobram 4 bits para codificar o nível hierárquico da grade na qual se encontra o ponto. A representação final para os 64 bits do *gid*  proposto é a seguinte, em três partes:
 
-* Primeiros 4 bits, `selgrid`, **selecionam a grade**: `b'0000'` = nível _L0_, grade 500&nbsp;km; `b'0001'` = nível _L1_, grade 100&nbsp;km; ...;  `b'0101'` = nível _L5_, grade 1&nbsp;km; `b'0110'` = nível _L6_, grade 200&nbsp;m.
+* **7 primeiros dígitos**, posições 1 a 7: valor no eixo *X* da projeção Albers.
+* **8 dígitos seguintes**, posições 8 a 16: valor no eixo *Y* da projeção Albers.
+* **Úlimo dígito**: número do nível hierárquico da célula, seguindo a convenção *L0*=500KM, *L1*=100KM, ..., *L5*=1KM, *L6*=200M.
 
-* 30 bits seguintes, `x10`, **codificam X10**: a primeira coordenada XY Albers, multiplicada por 10 e arredondada.  
-
-* 30 bits finais, `y10`, **codificam Y10**: a segunda coordenada XY Albers, multiplicada por 10 e arredondada.
+Por exemplo, o valor do `gid` da célula de 200M que contém o [Marco Zero de São Paulo](https://pt.wikipedia.org/wiki/Marco_zero_da_cidade_de_S%C3%A3o_Paulo) é *5756000087008006*, portanto *X=5756000*, *Y=08700800* e *L=6*.
 
 Com isso podemos podemos indexar além das células fornecidas pelos shapfiles do IBGE, todas as demais, criando um grande e econômico _cache_ das grades de sumarização.
 
-## Resolução dos identificadores de célula
+## Visualização dos identificadores
 
-A consulta abaixo funcionou para o quadrante 45 (tabela `grade_id45`) e algumas outras, mas falha para a grande maioria, principalmente quando o número de dígitos aumenta para acomodar a unicidade (por exemplo nos quadrantes do extremo norte).
+Uma função simples e bastante rápida gera a geometria da célula, não há necessidade de se armazenar. No QGIS um grande número de células podem ser vistas simultaneamente através de VIEW SQL, por exemplo:
 
-Está pendente portanto um algoritmo, mesmo que heurístico, capaz de reproduzir a partir do centróide da célula o seu identificador IBGE.
-
-```SQL
-SELECT * FROM (
-  SELECT array[substr(id,5+digs,4), substr(id,10+digs)] id_parts,
-        round( (ST_x((geom)) - sub) / div )::int x,
-        round( (ST_y((geom)) - sub) / div )::int y
-  FROM (
-    SELECT id, digs,
-           CASE WHEN ld>100000 THEN 0.001 WHEN ld>10000 THEN 0.01 ELSE 0.1 END*ld AS div,
-           CASE WHEN is_five THEN 0.25 ELSE 0.50 END*ld AS sub,
-           ST_Transform(  ST_centroid( ST_Collect(geom) ),  952019) AS geom
-    FROM (
-      SELECT *,
-        10^(3+digs + CASE WHEN is_five THEN 1 ELSE 0 END) as ld
-        FROM ( SELECT t0a.*, is_five, digs FROM (
-            SELECT *, nome_10km AS id --> Trocar por nome_1km, nome_5km, nome_50km ou nome_100km.
-            FROM grade_id45 --> Trocar por outro quadrante (44,35,etc)
-        ) t0a, LATERAL (SELECT
-          substr(t0a.id,1,1)='5' AS is_five,
-          length(t0a.id)-13 as digs
-        ) t0b  
-      ) t0c
-    ) t0f
-    GROUP BY 1,2,3,4
-  ) t1
-) t2  -- WHERE homologando a heuristica da nomenclatura das células:
-WHERE substr(x::text,1,length(id_parts[1]))!=id_parts[1]
-   OR substr(y::text,1,length(id_parts[2]))!=id_parts[2]
-ORDER BY 1;
+```sql
+CREATE VIEW test_grade_level1 AS
+  SELECT gid, grid_ibge.draw_cell(gid) geom
+  FROM grid_ibge.censo2010_info
+  WHERE grid_ibge.gid_to_level(gid)=1;
 ```
 
-O comportamento regular esperado nos parâmetros de
-`(X_centro-sub)/div` e `(Y_centro-sub)/div`
-seria o seguinte:
+Abaixo ilustradas as grades *L0* e *L1*  com respectivamente células de lado 500KM e 100KM, em seguida um zoom para destacar a grade *L2* de 50KM.
 
-Lado<br/>(km)|Exemplo| digs|   ld |  sub | div
-----|-----------------|----|------|------|-----
-1   | 1KME5300N9632   | 0  | 1000 | 500 | 100
-5   | 5KME5300N9630   | 0  | 10000 | 2500 | 1000
-10  | 10KME5300N9630  | 1  | 10000 | 5000 | 1000
-50  | 50KME5300N9600  | 1  | 100000 | 25000 | 1000
-100 | 100KME5300N9550 | 2  | 100000 | 50000 | 1000
+![](assets/grades-L0_L1.png)
 
-Com arredondamento seguido de multipicação por 10 por exemplo pode-se amplicar o número de casos, mas ainda teriam de ser tratados quadrantes como o 83 (tabela `grade_id83`) onde os identificadores são maiores. Por exemplo 1KME4300N11825 e 5KME4300N11825 possuem 4 dígitos em X e 5 dígitos em Y.
+![](assets/grades-L0_L1_L2.png)
 
-<!--
-SELECT DISTINCT min(id) as min_id digs, ld, sub, div
-FROM (
-  SELECT id, digs, ld,
-         CASE WHEN ld>100000 THEN 0.001 WHEN ld>10000 THEN 0.01 ELSE 0.1 END*ld AS div,
-         CASE WHEN substr(id,1,1)='5' THEN 0.25 ELSE 0.50 END*ld AS sub,
-         ST_Transform(  ST_centroid( ST_Collect(geom) ),  952019) AS geom
-  FROM (
-    SELECT *,
-      length(id)-13 as digs,
-      10^(3+length(id)-13 + CASE WHEN substr(id,1,1)='5' THEN 1 ELSE 0 END) as ld
-      FROM ( SELECT *, nome_10km AS id FROM grade_id83) t00
-           -- Trocar por nome_1km, nome_5km, nome_50km ou nome_100km.
-      ) t0
-  GROUP BY 1,2,3,4, 5
-) t1;
-... como realizar a resulução dos geocodigos da Grade IBGE, exemplos:
-* Solicitado XY relativo a `1KME5300N9350`: ...
-* Solicitado XY relativo a `200ME53000N96322`: ...
--->
+## Resolução dos identificadores de célula
+
+...
 
 ## Resolução de ponto em célula
 
@@ -240,27 +181,7 @@ A solução proposta na presente versão indexada por XY permite usar a represen
 Por exemplo o ponto XY=(4580490.89,8849499.5) pode primeiramente ser arredondado para inteiros multiplicados por 10, e
 em seguida a busca se realizaria através de indexão otimizada em cada coordenada, nas tabelas `mvw_censo2010_info_Xsearch` e `mvw_censo2010_info_Ysearch`.
 
-Suponhamos a busca por **X=4580491** (que na representação inteira requer multiplicar por 10), ela será realizada pelo algoritmo:
-
-```sql
-SELECT x FROM (
-  (
-    SELECT x FROM grid_ibge.mvw_censo2010_info_xsearch
-    WHERE x >= 4580491*10 ORDER BY x LIMIT 1
-  )  UNION ALL (
-    SELECT x FROM grid_ibge.mvw_censo2010_info_xsearch
-    WHERE x < 4580491*10 ORDER BY x DESC LIMIT 1
-  )
-) t
-ORDER BY abs(4580491*10-x) LIMIT 1;
-```
-
-Depois de fazer mesmo em Y, obtemos a suposta célula que contém o ponto XY solicitado.
-A função  *search_cell* da biblioteca *grid_ibge* retorna não-nulo, em 0.042 ms, quando existe uma célula contendo o ponto:
-```SQL
-SELECT * FROM grid_ibge.censo2010_info
-WHERE xy=grid_ibge.search_cell(4580490.89::real, 8849499.5::real);
-```
+...
 
 ## Adaptações para outros países
 
@@ -272,49 +193,8 @@ Conforme necessidades, os _scripts_ SQL podem ser facilmente adaptados, desde qu
 
 * Discarte do preparo: a operação de `DROP CASCADE` pode ser comentada caso esteja realizando testes, fazendo por partes, ou reusando o *schema* em outras partes do seu sistema.
 
-----------------
-
-## BIBLIOTECA
-Principais funções, para a manipulação da grade compacta e conversão entre as representações original e compacta, todas do SQL SCHEMA `grid_ibge`:
-
-* `coordinate_encode(x real, y real, level int)`: compacta as coordenadas XY Albers de centro de célula em *gid*, com respectivo nível da célula.
-
-* `coordinate_encode10(x10 int, y10 int, level int)`: faz o trabalho para `coordinate_encode()`, já que internamente a representação é por inteiros XY10.
-
-* `coordinate_decode10(gid bigint)`: retorna centro XY10 e nível da célula identificada por *gid*.
-
-* `level_decode(gid bigint)`: devolve apenas o nível da célula identificada por *gid*.
-
-* `level_to_size(level int)`: devolve o tamanho de lado da célula conforme a convenção de níveis (0 a 6) adotada.   
-
-* `search_xy10(p_x10 int, p_y10 int, p_level smallint)`: descobre a célula onde está contido o ponto XY10, por hora preparando para rodar apenas com p_level=5.
-
-* `search_cell(p_x real, p_y real, p_level smallint)`: idem `search_xy10()` porém partindo das coordenadas XY Albers.
-
-* `draw_cell(gid bigint)`: desenha célula identificada por *gid*.
-
-<!--
-* grid_ibge.coordinate_encode10:
-* grid_ibge.coordinate_encode(x real, y real, level int)
-* grid_ibge.coordinate_encode(x real, y real, is_200m boolean)
-* grid_ibge.coordinate_encode(x real, y real)
-* grid_ibge.coordinate_encode10(x10 int, y10 int, level int)
-* grid_ibge.coordinate_decode10(gid bigint)
-* grid_ibge.level_decode(gid bigint) RETURNS int AS $f$
-* grid_ibge.level_to_size(level int)  
-* grid_ibge.search_xy10(p_x10 int, p_y10 int, p_level smallint)
-* grid_ibge.search_cell(p_x real, p_y real, p_level smallint)
-* grid_ibge.xy10_to_quadrante()
-* grid_ibge.xy_to_quadrante()
-* grid_ibge.gid_to_quadrante(p_gid bigint)
-* grid_ibge.draw_cell(real,real,int,boolean,int)
-* grid_ibge.draw_cell(int,int,int,boolean,int)
-* grid_ibge.draw_cell(int[],int,boolean,int)
-* grid_ibge.draw_cell(bigint,boolean,int)
--->
-
-### API
-Funções de resolução para uso na API.
+## API
+As funções de resolução para uso na API são descritas no README do `/src`. Com devidas configurações no NGINX elas se tornam os seguintes _endpoints_:
 
 * ...
 * Endpoint `br_ibge.osm.org/{cell_id}`:  retorna célula solicitada na sintaxe original,  por exemplo `5KME5300N9630`.
@@ -322,71 +202,24 @@ Funções de resolução para uso na API.
 * Endpoint `br_ibge.osm.org/geo:{lat},{long};u={uncertainty}`: usa a incerteza para deduzir o nível mais próximo e efeuar `search_cell(p_x,p_y,p_level)`. Por exemplo erro de 5km a 10km retorna células de 10 km.
 * ...  
 
-## INSTALAÇÃO
+Exemplos de busca a serem implementadas no futuro:
 
-Use no terminal, a parir desta pasta, o comando `make` para listar as alternativas de instalação integral (*all1* ou *all2* descritas abaixo), que rodam todos os  _targets_ necessários, exceto `clean`. O comando `make` sem target informa também o que fazem os demais targets, que podem ser executados em separado.
+... tabela de exemplos com pontos conhecidos (Wikidata) do Brasil.
 
-Na pasta anterior, em [/src/README.md](../README.md), as versões e configurações necessárias são detalhadas.
+----------------
 
-### Instalando somente o zip
-Recomenda-se o mais simples, que é obter a **Grade Estatística IBGE Compacta** diretamente a partir do CSV zipado desta distribuição git. Basta executar, em terminal Linux:
+## INSTALAÇÃO, COMPATIBILIDADE, BIBLIOTECA, ETC
 
-```sh
-make all2
-```
+Documentação para demais detalhes, ver [`/src/README.md`](src/README.md):
 
-### Reproduzindo o processo completo
+* [SRC/INTRODUÇÃO](src/README.md#introdução)
 
-Se o objetivo for reproduzir, auditorar ou atualizar a  partir da **Grade Estatística IBGE Original**, demora um pouco mais e requer um pouco mais de espaço em disco, mas é igualmente simples. Basta executar no terminal Linux, nesta pasta, o comando:
+* [SRC/BIBLIOTECA](src/README.md#biblioteca)
+    * Uso geral
+    * Interação API PostgREST
 
-```sh
-make all1
-```
-
-Ou executar, na sequência, cada um dos _targets_ definidos nas dependências de *all1*.
-No final de `make grid_orig_get` (ou meio do `make all1`) todas as tabelas de quadrantes,  `grade_id*`, terão sido criadas:
-```
- grade_id04: 66031 itens inseridos
- grade_id13: 31126 itens inseridos
- grade_id14: 537732 itens inseridos
- grade_id15: 306162 itens inseridos
- ...
- grade_id92: 5091 itens inseridos
- grade_id93: 1901 itens inseridos
-(56 rows)
-```
-
-Executando em seguida o `make grid_alt1_fromOrig` (final do `make all1`), as tabelas são lidas e as geometrias de célula são convertidas em coordenadas de centro (na função `grid_ibge.censo2010_info_load()`), para formar o identificador de célula com representação binária compacta (representado em *bigint*) na tabela `grid_ibge.censo2010_info`.  O resultado será resumido pela comparação:
-
-resource            | tables | tot_bytes  | tot_size | tot_lines | bytes_per_line
---------------------|--------|------------|----------|-----------|-----------
-Grade IBGE original |     56 | 4311826432 | 4112 MB  |  13286489 |        325
-Grade compacta      |      1 |  588341248 | 561 MB   |  13286489 |         44
-
-<!-- old Grade compacta      |      1 |  693272576 | 661 MB   |  13286489 |         52 -->
-A tabela da nova grade pode ainda ser gravada como CSV,  
-
-```sql
-COPY grid_ibge.censo2010_info TO '/tmp/grid_ibge_censo2010_info.csv' CSV HEADER;
-```
-Se por acaso o IBGE gerar uma nova versão da grade original, o arquivo CSV deve então ser zipado com o comando `zip` Linux e gravado no presente repositório *git*, na pasta [/data/BR_IBGE](https://github.com/AddressForAll/grid-tests/tree/main/data/BR_IBGE).
-
-### Compatibilidade
-
-Use `make` na pasta `/src`  para ver instruções e rodar _targets_ desejados.
-O software foi testado com as seguintes versões e configurações:
-
-* PostgreSQL v12 ou v13, e PostGIS v3. Disponível em *localhost* como service. Rodar make com outra `pg_uri` se o usuário não for *postgres*
-
-* `psql` v13. Configurado no `makefile` para rodar já autenticado pelo usuário do terminal .
-
-* pastas *default*: rodar o `make` a partir da própria pasta *git*, `/src/BR_new`. Geração de arquivos pelo servidor local PostgreSQL em `/tmp/pg_io`.
-
-Para testes pode-se usar `git clone https://git.osm.codes/BR_IBGE.git` ou uma versão específica zipada, por exemplo `wget -c https://git.osm.codes/BR_IBGE/archive/refs/tags/`. Em seguida, estes seriam os procedimentos básicos para rodar o *make* em terminal *bash*, por exemplo:
-```sh
-cd grid-tests/src/BR_new
-make
-```
-
-O `make` sem target vai apnas listar as opções. Para rodar um target específico usar `make nomeTarget`.
-Para rodar com outra base ou outra URI de conexão com PostreSQL server, usar por exemplo <br/>`make db=outraBase pg_uri=outraConexao nomeTarget`.
+* [SRC/INSTALAÇÃO](src/README.md#instalação)
+    * Instalando somente o zip
+    * Reproduzindo o processo completo
+    * Compatibilidade
+    * Script NGINX
