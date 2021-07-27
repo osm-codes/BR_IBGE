@@ -174,14 +174,8 @@ Executando em seguida o `make grid_alt1_fromOrig` (final do `make all1`), as tab
 
 resource            | tables | tot_bytes  | tot_size | tot_lines | bytes_per_line
 --------------------|--------|------------|----------|-----------|-----------
-Grade IBGE original |     56 | 4311826432 | 4112 MB  |  13286489 |        325
-Grade compacta      |      1 |  588341248 | 561 MB   |  13286489 |         44
-
-
-resource            | tables | tot_bytes  | tot_size | tot_lines | bytes_per_line
---------------------|--------|------------|----------|-----------|-----------
-Grade IBGE original |     56 | 4311826432 | 4112 MiB  |  13286489 |            325
-Grade compacta      |      1 |  726556672 | 693 MiB   |  13924454 |             52
+Grade IBGE original |     56 | 4311826432 | 4112 MB  |  13286489 |            325
+Grade compacta      |      1 |  726556672 | 693 MB   |  13924454 |             52
 
 nível | núm. células
 ------|----------------
@@ -192,7 +186,6 @@ nível | núm. células
 4 |          358069
 5 |         8860553
 6 |         4610350
-
 
 <!-- old Grade compacta      |      1 |  693272576 | 661 MB   |  13286489 |         52 -->
 A tabela da nova grade pode ainda ser gravada como CSV,  

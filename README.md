@@ -112,9 +112,11 @@ Mesmo sendo uma reprodução fiel e completa da grade original, alinhada aos [ob
 
 * Níveis hierárquicos numerados de 0 a 6: zero é o quadrante de origem, 1 a 6 são os níveis de subdivisão.
 
-* Informação embutida no *gid* de 64 bits: 1+3 bits para o nível hierárquico (primeiro bit em zero para inteiros positivos), 60 bits para as coordenadas Albers arredondadas (por hora opção de mulplicicar por 10 para incluir primeira casa decimal), 30 bits para X10 e 30 para Y10.
+* Informação embutida no *gid* de 64 bits: porém **codificação decimal**, para debug e legibilidade humana. Apenas a operação *bitwise* `gid&7` retornando o nível hierárquico, um valor que varia de 0 a 7 no último dígito decimal (3 bits).
 
-* Uso do centro da célula no *gid*: ao invés de preservar fielmente as convenções de coordenada do rótulo `nome_*` original, privilejar a indexação pelo centro geométrico, tendo em vista que os algoritmos de busca se baseiam hipóteses de uniformidade. Aparentemente os valores exatos são os arredondados, para todas as escalas.
+* Uso do *nome original* da célula presente no *gid*:  mera conversão de string em bigint, mantendo em decimal a mesma legibilidade para humanos.
+
+* Uso do *centro da célula* nos mecanismos de busca: uniformiza a operação e mantém, nos algoritmos otimizados, a tradição das demais bibliotecas de geocódigo indexador, como Geohash binário, S2geometry e outras.
 
 * Valores `fem` e `masc` arredondados: por serem antigos e mais imprecisos que `pop`, não nos preocupamos com a precisão em arredondamentos.
 
@@ -145,7 +147,7 @@ O codificador de coordenadas consegue compactar toda a informação de localiza�
 
 ...
 
-Como os valores mínimo e máximo das coordenadas XY dos centros de célula de todo o conjunto são, respectivamente, `(2809500,7599500)` e `(7620500,11920500)`, mesmo multiplicando por 10 ainda estão uma ordem de grandeza abaixo de `2^30-1 = 1073741823`. Cabem folgadamente em 30 bits e ainda sobram 4 bits para codificar o nível hierárquico da grade na qual se encontra o ponto. A representação final para os 64 bits do *gid*  proposto é a seguinte, em três partes:
+Como os valores mínimo e máximo das coordenadas XY dos centros de célula de todo o conjunto são, respectivamente, `(2809500,7599500)` e `(7620500,11920500)`, duas ordens de grandeza abaixo de `2^30-1 = 1073741823`. Cabem folgadamente em 30 bits e ainda sobram 3 bits para codificar o nível hierárquico da grade na qual se encontra o ponto. A representação final para os 64 bits do *gid*  proposto é a seguinte, em três partes:
 
 * **7 primeiros dígitos**, posições 1 a 7: valor no eixo *X* da projeção Albers.
 * **8 dígitos seguintes**, posições 8 a 16: valor no eixo *Y* da projeção Albers.
