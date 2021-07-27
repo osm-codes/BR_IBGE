@@ -14,6 +14,7 @@ Sumário:
     * [Adaptações para outros países](#adaptações-para-outros-países)
 * [API](#api)
 * [INSTALAÇÃO, COMPATIBILIDADE, BIBLIOTECA, ETC](#instalação,-compatibilidade,-biblioteca,-etc)
+* [DISTRIBUIÇÃO DA GRADE COMPACTA](#distribuição-da-grade-compacta)
 
 ------------
 
@@ -223,3 +224,21 @@ Documentação para demais detalhes, ver [`/src/README.md`](src/README.md):
     * Reproduzindo o processo completo
     * Compatibilidade
     * Script NGINX
+
+------
+
+## DISTRIBUIÇÃO DA GRADE COMPACTA
+
+Na pasta `/data` temos:
+* [grid_ibge_censo2010_info.zip](data/grid_ibge_censo2010_info.zip): grade compacta CSV zipada.
+* [md5sum.txt](data/md5sum.txt) e [sha256sum.txt](data/sha256sum.txt): checksums dos dados-fonte originais IBGE, e da grade compacta.
+* [quadrantes.geojson](data/quadrantes.geojson): geometria do nível *L0* com  contornos dos níveis *L5* e *L6*.
+
+Resumo das **metas alcançadas pelo projeto**:
+
+* Arquivo CSV: `grid_ibge_censo2010_info.csv` tem ~340&nbsp;Mb, que zipado resulta em **47&nbsp;Mb** (14% de 339Mb).
+  - *reduziu o tamanho da distribuição* (de 849&nbsp;Mb) para **6%**.
+  - *simplificou a estrutura*: o CSV é muito mais simples, legível, aberto e universal do que *shapfiles*.
+* *Otimizadada para SQL*: o uso do identificador de célula como indexador tornou muito mais ágeis as funções de conversão, garantem o uso nas aplicações estatísticas e de recuperação da informação.  
+* *Otimizada para PostGIS e similares*: a biblioteca de reconstrução geométria é rápida e na maior parte das aplicações dispensa o cache de geometria.
+* *Reduziu a ocupação em disco no banco de dados SQL*: de ~4112&nbsp;MB (13286489&nbsp;linhas e ~325&nbsp;bytes/linha) para ~17%=693&nbsp;MB   (13924454&nbsp;linhas e ~52&nbsp;bytes/linha).
