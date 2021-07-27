@@ -90,11 +90,13 @@ CREATE or replace VIEW vw_tmp_ibgetabs AS
 ;
 
 --- INGESTÃO:
-
 DELETE FROM grid_ibge.censo2010_info; -- is a refresh, ignores old data.
-
 --SELECT grid_ibge.censo2010_info_load('grade_id04',true);  -- false para basico
 SELECT grid_ibge.censo2010_info_load(table_name,true) as msg FROM vw_tmp_ibgetabs;
+
+---------------------------------
+
+--- RELATÓRIO DOS DADOS INGERIDOS:
 
 -- Volumetria comparativa:
 SELECT resource, tables, tot_bytes, pg_size_pretty(tot_bytes) tot_size,
@@ -116,7 +118,6 @@ FROM grid_ibge.censo2010_info
 GROUP BY 1 ORDER BY 1;
 
 -- REFRESHES:
-
 REFRESH MATERIALIZED VIEW  grid_ibge.mvw_censo2010_info_Xsearch;
 REFRESH MATERIALIZED VIEW  grid_ibge.mvw_censo2010_info_Ysearch;
 
@@ -128,3 +129,42 @@ SELECT min(y) y_min, max(y) y_max FROM grid_ibge.mvw_censo2010_info_Ysearch;
 --   DROP das tabelas listadas em vw_tmp_ibgetabs;
 --   DROP FUNCTION grid_ibge.censo2010_info_load;
 --   DROP VIEW vw_tmp_ibgetabs;
+
+-- COPY (SELECT * FROM grid_ibge.censo2010_info ORDER BY gid&7, gid) TO '/tmp/grid_ibge_censo2010_info.csv' CSV HEADER;
+
+/*
+resource       | tables | tot_bytes  | tot_size | tot_lines | bytes_per_line
+---------------------+--------+------------+----------+-----------+----------------
+Grade IBGE original |     56 | 4311826432 | 4112 MB  |  13286489 |            325
+Grade compacta      |      1 |  726556672 | 693 MB   |  13924454 |             52
+(2 rows)
+
+ibge=#
+ibge=# -- Células por nível:
+ibge=# SELECT grid_ibge.gid_to_level(gid) as nivel, COUNT(*) n_compact_cells
+ibge-# FROM grid_ibge.censo2010_info
+ibge-# GROUP BY 1 ORDER BY 1;
+nivel | n_compact_cells
+-------+-----------------
+0 |              56
+1 |            1000
+2 |            3802
+3 |           90624
+4 |          358069
+5 |         8860553
+6 |         4610350
+(7 rows)
+
+ibge=# SELECT min(x) x_min, max(x) x_max FROM grid_ibge.mvw_censo2010_info_Xsearch;
+  x_min  |  x_max
+---------+---------
+ 2805000 | 7650000
+(1 row)
+
+ibge=# SELECT min(y) y_min, max(y) y_max FROM grid_ibge.mvw_censo2010_info_Ysearch;
+  y_min  |  y_max
+---------+----------
+ 7575000 | 12100000
+(1 row)
+
+*/

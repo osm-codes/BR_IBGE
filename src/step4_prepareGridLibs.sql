@@ -58,20 +58,12 @@ $f$ LANGUAGE SQL IMMUTABLE;
 COMMENT ON FUNCTION grid_ibge.name_to_parts
   IS 'Splits IBGE cell name string into its 3 parts.'
 ;
-CREATE FUNCTION grid_ibge.name_to_parts_normalized(name text) RETURNS int[] AS $f$
-  SELECT array[
-    grid_ibge.prefix_to_level(p[1]),
-    rpad(p[2], 7, '0')::int, -- X range into (28093700,75992710).
-    rpad(p[3], CASE WHEN substr(p[3],1,1)='1' THEN 8 ELSE 7 END, '0')::int -- Y into (76207280,119206110).
-  ]
-  FROM ( SELECT grid_ibge.name_to_parts(name) p ) t
-$f$ LANGUAGE SQL IMMUTABLE;
 
 CREATE FUNCTION grid_ibge.name_to_gid(name text) RETURNS bigint AS $f$
   SELECT (
-    rpad(p[2], 8, '0') -- X
-    || CASE WHEN substr(p[3],1,1)='1' THEN rpad(p[3],9,'0') ELSE '0'||rpad(p[3],8,'0') END -- Y
-    || '0'||grid_ibge.prefix_to_level(p[1]) -- level
+    rpad(p[2], 7, '0') -- X
+    || CASE WHEN substr(p[3],1,1)='1' THEN rpad(p[3],8,'0') ELSE '0'||rpad(p[3],7,'0') END -- Y
+    || grid_ibge.prefix_to_level(p[1]) -- level
   )::bigint
   FROM ( SELECT grid_ibge.name_to_parts(name) p ) t
 $f$ LANGUAGE SQL IMMUTABLE;
@@ -80,8 +72,8 @@ COMMENT ON FUNCTION grid_ibge.name_to_gid
 ;
 
 CREATE or replace FUNCTION grid_ibge.gid_to_ptref(gid bigint) RETURNS int[] AS $f$
-  -- X,Y,Level. Falta testar opções de otimização, como floor(gid/1000000000000::bigint) as x
-  SELECT array[ substr(p,1,7)::int, substr(p,8,9)::int, (gid & 7::bigint)::int ]
+  -- X,Y,Level. Falta testar opções de otimização, como floor(gid/100000000000::bigint) as x
+  SELECT array[ substr(p,1,7)::int, substr(p,8,8)::int, (gid & 7::bigint)::int ]
   FROM ( SELECT gid::text p ) t
 $f$ LANGUAGE SQL IMMUTABLE;
 COMMENT ON FUNCTION grid_ibge.gid_to_ptref
@@ -106,19 +98,42 @@ COMMENT ON FUNCTION grid_ibge.gid_to_ptcenter
 
 CREATE FUNCTION grid_ibge.ptcenter_to_ptref(x int, y int, nivel int) RETURNS int[] AS $f$
   SELECT CASE
-    WHEN nivel=6 THEN array[ x-halfside, y+halfside, nivel ]
-    ELSE              array[ x-halfside, y-halfside, nivel ]
+    WHEN nivel=6 THEN array[ x-halfside, y+halfside, nivel, halfside ]
+    ELSE              array[ x-halfside, y-halfside, nivel, halfside ]
     END
   FROM ( SELECT grid_ibge.level_to_size(nivel)/2::int as halfside ) t
 $f$ LANGUAGE SQL IMMUTABLE;
 
 CREATE FUNCTION grid_ibge.ptcenter_to_gid(x int, y int, nivel int) RETURNS bigint AS $f$
   SELECT (
-    rpad(p[1]::text, 8, '0') -- X
+    rpad(p[1]::text, 7, '0') -- X
     || CASE WHEN nivel=6 THEN '0'||rpad(p[2]::text,8,'0') ELSE rpad(p[2]::text,9,'0') END -- Y
-    || '0'||nivel::text -- level
+    || nivel::text -- level
   )::bigint
   FROM (SELECT grid_ibge.ptcenter_to_ptref(x,y,nivel)) t(p)
+$f$ LANGUAGE SQL IMMUTABLE;
+
+CREATE FUNCTION grid_ibge.gid_to_level(gid bigint) RETURNS int AS $f$
+  SELECT (gid & 7::bigint)::int
+$f$ LANGUAGE SQL IMMUTABLE;
+
+
+---------!!!!!!!!!!!!!!!!!!!
+-- 1. falta encode de coordenada no lugar de name, aí fazendo o devido arredondamento e equação de célula. Por exemplo 200M e 1KM usam diferentes.
+-- 2. falta decode de GID em centro de célula que é diferente de decode nas partes!
+-- 3. Eliminar o *10 !
+-- 4. testar o draw_cell primeiro em grade_id04 com 200M e 1KM ... depois o resto.
+-- 5. testar o draw_cell_snaptogrid para valores interiores sempre cairem no centro.
+
+-- LIXO:
+
+CREATE FUNCTION grid_ibge.name_to_parts_normalized(name text) RETURNS int[] AS $f$
+  SELECT array[
+    grid_ibge.prefix_to_level(p[1]),
+    rpad(p[2], 7, '0')::int, -- X range into (28093700,75992710).
+    rpad(p[3], CASE WHEN substr(p[3],1,1)='1' THEN 8 ELSE 7 END, '0')::int -- Y into (76207280,119206110).
+  ]
+  FROM ( SELECT grid_ibge.name_to_parts(name) p ) t
 $f$ LANGUAGE SQL IMMUTABLE;
 
 CREATE FUNCTION grid_ibge.name_to_center(name text) RETURNS int[] AS $f$
@@ -133,18 +148,6 @@ CREATE FUNCTION grid_ibge.name_to_center(name text) RETURNS int[] AS $f$
     FROM ( SELECT grid_ibge.name_to_parts_normalized(name) p ) t1
   ) t2
 $f$ LANGUAGE SQL IMMUTABLE;
-
-CREATE FUNCTION grid_ibge.gid_to_level(gid bigint) RETURNS int AS $f$
-  SELECT (gid & 7::bigint)::int
-$f$ LANGUAGE SQL IMMUTABLE;
-
-
----------!!!!!!!!!!!!!!!!!!!
--- 1. falta encode de coordenada no lugar de name, aí fazendo o devido arredondamento e equação de célula. Por exemplo 200M e 1KM usam diferentes.
--- 2. falta decode de GID em centro de célula que é diferente de decode nas partes!
--- 3. Eliminar o *10 !
--- 4. testar o draw_cell primeiro em grade_id04 com 200M e 1KM ... depois o resto.
--- 5. testar o draw_cell_snaptogrid para valores interiores sempre cairem no centro.
 
 ---------------
 
@@ -202,14 +205,7 @@ CREATE FUNCTION grid_ibge.search_xyL(p_x int, p_y int, p_level smallint) RETURNS
   ) t1y
 $f$ LANGUAGE SQL IMMUTABLE;
 
-CREATE FUNCTION grid_ibge.gid_contains(
-  gid bigint, gid_into bigint
-) RETURNS bigint AS $wrap$
-  SELECT
-  CAE level>
-  grid_ibge.search_xyL( round(p_x)::int, round(p_y)::int, p_level );
-$wrap$ LANGUAGE SQL IMMUTABLE;
-
+-- CREATE FUNCTION grid_ibge.gid_contains(gid bigint, gid_into bigint) RETURNS bigint
 
 CREATE FUNCTION grid_ibge.search_cell(p_x real, p_y real, p_level smallint) RETURNS bigint AS $wrap$
   SELECT grid_ibge.search_xyL( round(p_x)::int, round(p_y)::int, p_level );

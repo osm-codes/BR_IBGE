@@ -64,7 +64,7 @@ grid_alt1_toZip:
 	@echo "-- creating CSV and ZIP of new grid:"
 	psql $(pg_uri)/$(pg_db) -c "CREATE extension IF NOT EXISTS adminpack"
 	psql $(pg_uri)/$(pg_db) -c "SELECT pg_catalog.pg_file_unlink('/tmp/grid_ibge_censo2010_info.csv') AS rm_csv_file"
-	psql $(pg_uri)/$(pg_db) -c "COPY grid_ibge.censo2010_info TO '/tmp/grid_ibge_censo2010_info.csv' CSV HEADER"
+	psql $(pg_uri)/$(pg_db) -c "COPY (SELECT * FROM grid_ibge.censo2010_info ORDER BY gid&7, gid) TO '/tmp/grid_ibge_censo2010_info.csv' CSV HEADER"
 	rm -f /tmp/grid_ibge_censo2010_info.zip
 	zip -j /tmp/grid_ibge_censo2010_info.zip /tmp/grid_ibge_censo2010_info.csv
 	@echo "Saved zip at /tmp"
