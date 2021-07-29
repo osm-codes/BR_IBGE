@@ -159,7 +159,7 @@ Com isso podemos podemos indexar além das células fornecidas pelos shapfiles d
 
 ## Visualização dos identificadores
 
-Uma função simples e bastante rápida gera a geometria da célula, não há necessidade de se armazenar. No QGIS um grande número de células podem ser vistas simultaneamente através de VIEW SQL, por exemplo:
+Na biblioteca são oferecidas funções geradoras da geometria da célula, **não há necessidade de se armazenar a geometria da célula**. As funções, principalmente aquela que toma como argumento apenas o *gid*, são simples e rápidas o bastante no PostGIS. No QGIS um grande número de células podem ser vistas simultaneamente através de uma VIEW SQL, sem cache. Por exemplo a grade *L1* inteira:
 
 ```sql
 CREATE VIEW test_grade_level1 AS
@@ -168,7 +168,7 @@ CREATE VIEW test_grade_level1 AS
   WHERE grid_ibge.gid_to_level(gid)=1;
 ```
 
-Abaixo ilustradas as grades *L0* e *L1*  com respectivamente células de lado 500KM e 100KM, em seguida um zoom para destacar a grade *L2* de 50KM.
+Abaixo ilustradas as grades *L0* e *L1*  com respectivamente células de lado 500KM e 100KM, em seguida um zoom para destacar a VIEW da grade *L2* de 50KM.
 
 ![](assets/grades-L0_L1.png)
 
