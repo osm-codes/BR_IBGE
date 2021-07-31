@@ -1,6 +1,6 @@
 --
 -- Grade IBGE em uma nova representação, minimalista, mais leve para o banco de dados, e com "custo geometria" opcional.
--- Representação orientada às coordenadas XY10 dos centroides das células da grade.
+-- Algoritmo de busca orientado à representação por coordenadas XY dos centroides das células da grade.
 --
 
 -- -- -- --
@@ -80,6 +80,17 @@ COMMENT ON FUNCTION grid_ibge.gid_to_ptref
   IS 'Converts Bigint gid into reference-point XY Albers, and Level of the cell.'
 ;
 
+CREATE or replace FUNCTION grid_ibge.gid_to_name(gid bigint) RETURNS text AS $f$
+  -- CORRIGIR conforme name_200m etc. do original.
+  SELECT grid_ibge.level_to_prefix((gid & 7::bigint)::int)
+         || substr(p,1,7)||'E'
+         || substr(p,8,8)||'N-corrigir'
+  FROM ( SELECT gid::text p ) t
+$f$ LANGUAGE SQL IMMUTABLE;
+COMMENT ON FUNCTION grid_ibge.gid_to_ptref
+  IS 'Converts Bigint gid into original IBGE cell-name.'
+;
+
 CREATE FUNCTION grid_ibge.gid_to_ptcenter(gid bigint) RETURNS int[] AS $f$
   -- X,Y,Level. Falta testar opções de otimização, como floor(gid/1000000000000::bigint) as x
   SELECT CASE
@@ -97,6 +108,7 @@ COMMENT ON FUNCTION grid_ibge.gid_to_ptcenter
 ;
 
 CREATE FUNCTION grid_ibge.ptcenter_to_ptref(x int, y int, nivel int) RETURNS int[] AS $f$
+  -- descartar halfside, ninguém tá usando.
   SELECT CASE
     WHEN nivel=6 THEN array[ x-halfside, y+halfside, nivel, halfside ]
     ELSE              array[ x-halfside, y-halfside, nivel, halfside ]
@@ -104,13 +116,13 @@ CREATE FUNCTION grid_ibge.ptcenter_to_ptref(x int, y int, nivel int) RETURNS int
   FROM ( SELECT grid_ibge.level_to_size(nivel)/2::int as halfside ) t
 $f$ LANGUAGE SQL IMMUTABLE;
 
-CREATE FUNCTION grid_ibge.ptcenter_to_gid(x int, y int, nivel int) RETURNS bigint AS $f$
+CREATE or replace FUNCTION grid_ibge.ptcenter_to_gid(x int, y int, nivel int) RETURNS bigint AS $f$
   SELECT (
-    rpad(p[1]::text, 7, '0') -- X
-    || CASE WHEN nivel=6 THEN '0'||rpad(p[2]::text,8,'0') ELSE rpad(p[2]::text,9,'0') END -- Y
-    || nivel::text -- level
+    rpad(p[1], 7, '0') -- X
+    || CASE WHEN substr(p[2],1,1)='1' THEN rpad(p[2],8,'0') ELSE '0'||rpad(p[2],7,'0') END -- Y
+    || p[3] -- level
   )::bigint
-  FROM (SELECT grid_ibge.ptcenter_to_ptref(x,y,nivel)) t(p)
+  FROM ( SELECT grid_ibge.ptcenter_to_ptref(x,y,nivel)::text[] ) t(p)
 $f$ LANGUAGE SQL IMMUTABLE;
 
 CREATE FUNCTION grid_ibge.gid_to_level(gid bigint) RETURNS int AS $f$
@@ -125,8 +137,7 @@ $f$ LANGUAGE SQL IMMUTABLE;
 -- 4. testar o draw_cell primeiro em grade_id04 com 200M e 1KM ... depois o resto.
 -- 5. testar o draw_cell_snaptogrid para valores interiores sempre cairem no centro.
 
--- LIXO:
-
+-- LIXO: revisar código (chamar demais funções) ou descartar.
 CREATE FUNCTION grid_ibge.name_to_parts_normalized(name text) RETURNS int[] AS $f$
   SELECT array[
     grid_ibge.prefix_to_level(p[1]),
@@ -135,7 +146,6 @@ CREATE FUNCTION grid_ibge.name_to_parts_normalized(name text) RETURNS int[] AS $
   ]
   FROM ( SELECT grid_ibge.name_to_parts(name) p ) t
 $f$ LANGUAGE SQL IMMUTABLE;
-
 CREATE FUNCTION grid_ibge.name_to_center(name text) RETURNS int[] AS $f$
   -- FALTA refazer com base em gid_to_ptcenter()  e encode.
   SELECT CASE
@@ -168,9 +178,9 @@ CREATE MATERIALIZED VIEW grid_ibge.mvw_censo2010_info_Ysearch AS
 CREATE INDEX mvw_censo2010_info_ysearch_ybtree ON grid_ibge.mvw_censo2010_info_Ysearch(level,y);
 
 -----
-
-CREATE FUNCTION grid_ibge.search_xyL(p_x int, p_y int, p_level smallint) RETURNS bigint AS $f$
-   SELECT grid_ibge.ptcenter_to_gid(t1x.x, t1y.y, p_level) AS gid
+CREATE FUNCTION grid_ibge.search_xyL(p_x int, p_y int, p_level smallint) RETURNS int[] AS $f$
+   -- a busca parte da presunção de existência, ou seja, ponto dentro da grade.
+   SELECT array[t1x.x, t1y.y, p_level::int]
    FROM (
     SELECT x FROM (
       (
@@ -205,26 +215,39 @@ CREATE FUNCTION grid_ibge.search_xyL(p_x int, p_y int, p_level smallint) RETURNS
   ) t1y
 $f$ LANGUAGE SQL IMMUTABLE;
 
--- CREATE FUNCTION grid_ibge.gid_contains(gid bigint, gid_into bigint) RETURNS bigint
+CREATE FUNCTION grid_ibge.search_to_gid(p_x int, p_y int, p_level smallint) RETURNS bigint AS $f$
+  SELECT grid_ibge.ptcenter_to_gid(p[1], p[2], p_level)
+  FROM ( SELECT grid_ibge.search_xyL(p_x, p_y, p_level) ) t(p)
+$f$ LANGUAGE SQL IMMUTABLE;
 
+-- CREATE FUNCTION grid_ibge.gid_contains(gid bigint, gid_into bigint) RETURNS bigint
+-- drop FUNCTION grid_ibge.search_cell;
 CREATE FUNCTION grid_ibge.search_cell(p_x real, p_y real, p_level smallint) RETURNS bigint AS $wrap$
-  SELECT grid_ibge.search_xyL( round(p_x)::int, round(p_y)::int, p_level );
+  SELECT grid_ibge.search_to_gid( round(p_x)::int, round(p_y)::int, p_level );
 $wrap$ LANGUAGE SQL IMMUTABLE;
 -- precisa? grid_ibge.search_snapcell para arredondar conforme o nível.
 
+--DROP grid_ibge.search_cell_bylatlon;
 CREATE FUNCTION grid_ibge.search_cell_bylatlon(
-  lat real, lon real, p_level smallint
+  lat real, lon real, p_level int
 ) RETURNS bigint AS $f$
-  SELECT grid_ibge.search_cell(ST_X(geom)::real, ST_Y(geom)::real, p_level)
+  SELECT grid_ibge.search_cell(ST_X(geom)::real, ST_Y(geom)::real, p_level::smallint)
   FROM (SELECT ST_Transform( ST_SetSRID( ST_MakePoint(lon,lat),4326), 952019 )) t(geom);
 $f$ LANGUAGE SQL IMMUTABLE;
 -- select grid_ibge.search_cell_bylatlon(-23.550278::real,-46.633889::real,6::smallint);
 
+CREATE FUNCTION grid_ibge.search_cell(geoURI text, p_level int DEFAULT 5) RETURNS bigint AS $wrap$
+  SELECT grid_ibge.search_cell_bylatlon( p[1]::real, p[2]::real, p_level )
+  FROM ( SELECT regexp_match(geoURI,'^geo:([+\-]?\d+\.?\d*),([+\-]?\d+\.?\d*)(?:;.+)?$') ) t(p);
+  -- exemplo de opções para split(';')  'crs=BR_ALBERS_IBGE;u=200'
+  -- FALTA snap Uncertainty to level
+$wrap$ LANGUAGE SQL IMMUTABLE;
+
 CREATE FUNCTION grid_ibge.search_cell_bylatlon(lat numeric, lon numeric, p_level int) RETURNS bigint AS $wrap$
-  SELECT grid_ibge.search_cell_bylatlon(lat::real,lon::real,p_level::smallint)
+  SELECT grid_ibge.search_cell_bylatlon(lat::real,lon::real,p_level)
 $wrap$ LANGUAGE SQL IMMUTABLE;
 CREATE FUNCTION grid_ibge.search_cell_bylatlon(lat float, lon float, p_level int) RETURNS bigint AS $wrap$
-  SELECT grid_ibge.search_cell_bylatlon(lat::real,lon::real,p_level::smallint)
+  SELECT grid_ibge.search_cell_bylatlon(lat::real,lon::real,p_level)
 $wrap$ LANGUAGE SQL IMMUTABLE;
 -- select grid_ibge.search_cell_bylatlon(-23.550278,-46.633889,6);
 
@@ -232,8 +255,10 @@ $wrap$ LANGUAGE SQL IMMUTABLE;
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 -- Reproduzindo a grade original a partir da compacta:
 
-CREATE or replace FUNCTION grid_ibge.xy10_to_quadrante(
+CREATE or replace FUNCTION grid_ibge.xy_to_quadrante(
   -- LIXO, REVISAR!
+  -- Na cobertura `(Xmin,Ymin)=(2809500,7599500)` e `(Xmax,Ymax)=(7620500,11920500)`
+  -- Na grade completa? `(Xmin,Ymin)=(2805000,7575000)` e `(Xmax,Ymax)=(7650000,12100000)`
   x int, -- X*10, first coordinate of IBGE's Albers Projection
   y int -- Y*10, second coordinate of IBGE's Albers Projection
 ) RETURNS int AS $f$
@@ -242,10 +267,10 @@ DECLARE
   i0 int; j0 int;   -- level0 coordinates
   ij int;           -- i0 and j0 as standard quadrant-indentifier.
 BEGIN
-  dx0 := x::real/10.0 - 2800000.0;  dy0 := y::real/10.0 - 7350000.0; -- encaixa na box dos quadrantes
+  dx0 := x::real - 2805000::real;  dy0 := y::real - 7575000::real; -- encaixa na box dos quadrantes
   -- BUG! reduzir 15 e 23,  não são válidos aqui:
-  i0 := floor( 15.341::real * dx0/7800000.0::real )::int;
-  j0 := floor( 23.299::real * dy0/12350000.0::real )::int;
+  i0 := floor( 10::real * dx0/7650000.0::real )::int; -- check range 0 to 9
+  j0 := floor( 10::real * dy0/12100000.0::real )::int; -- check range 0 to 9
   ij := i0 + j0*10;
   IF ij NOT IN ( -- confere se entre os 54 quadrantes do território brasileiro
         4,13,14,15,23,24,25,26,27,33,34,35,36,37,39,42,43,44,45,46,47,50,51,52,53,54,55,56,
@@ -256,6 +281,8 @@ BEGIN
   RETURN ij;
 END
 $f$ LANGUAGE plpgsql IMMUTABLE;
+
+-- FALTA grid_ibge.gid_to_quadrante
 
 ------
 
@@ -289,7 +316,7 @@ CREATE or replace FUNCTION grid_ibge.draw_cell( -- by name
 $f$ LANGUAGE SQL IMMUTABLE;
 
 CREATE or replace FUNCTION grid_ibge.draw_cell( -- by GID. BUG para 1km
-  gid bigint, -- nível e centro XY10 da célula, codificados no geometricID
+  gid bigint, -- nível e centro XY da célula, codificados no geometricID
   p_translate boolean DEFAULT false, -- true para converter em LatLong (WGS84 sem projeção)
   p_srid int DEFAULT 952019          -- SRID da grade (default IBGE)
 ) RETURNS geometry AS $wrap$
@@ -328,12 +355,12 @@ $f$ LANGUAGE SQL IMMUTABLE;
 
 ---------------------------
 
-/*
+
 -- DROP VIEW grid_ibge.vw_original_ibge_rebuild;
 CREATE VIEW grid_ibge.vw_original_ibge_rebuild AS
   SELECT gid,
-         'idunico' AS id_unico, -- revisar
-         'nome_1km' AS nome_1km,  --revisar
+         grid_ibge.gid_to_name(gid) AS id_unico, -- revisar
+         grid_ibge.gid_to_name(gid) 'nome_1km' AS nome_1km,  --revisar
          --grid_ibge.gid_to_quadrante(gid) quadrante,
          pop-fem AS masc,
          fem,
@@ -347,4 +374,3 @@ CREATE VIEW grid_ibge.vw_original_ibge_rebuild AS
   ) t
 ;
 -- para visualizar no QGIS precisa criar view de um só quadrante para não sobrecarregar.
-*/

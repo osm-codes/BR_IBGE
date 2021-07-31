@@ -199,7 +199,7 @@ Conforme necessidades, os _scripts_ SQL podem ser facilmente adaptados, desde qu
 ## API
 As funções de resolução para uso na API são descritas no README do `/src`. Com devidas configurações no NGINX elas se tornam os seguintes _endpoints_:
 
-* ...
+* ... osm.org/geo:br_ibge2010:{nome} ou {gid}  .. idem osm.org/geo:br_cep:04569010  por hora retorna CRP. ou busca br_crp mas 
 * Endpoint `br_ibge.osm.org/{cell_id}`:  retorna célula solicitada na sintaxe original,  por exemplo `5KME5300N9630`.
 * Endpoint `br_ibge.osm.org/geo:{lat},{long}`:  efeua `search_cell(p_x,p_y,5)`, ou seja, retorna célula de 1km.
 * Endpoint `br_ibge.osm.org/geo:{lat},{long};u={uncertainty}`: usa a incerteza para deduzir o nível mais próximo e efeuar `search_cell(p_x,p_y,p_level)`. Por exemplo erro de 5km a 10km retorna células de 10 km.
