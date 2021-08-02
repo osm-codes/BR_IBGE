@@ -1,0 +1,56 @@
+
+description: Projeto Grade Estatística IBGE Compacta
+profile: data-package
+url: http://git.osm.codes/BR_IBGE
+resources:
+  - path: data/grid_ibge_censo2010_info.zip
+    compression: zip
+    encoding: utf-8
+    format: csv.zip
+    hashing: md5
+    hash: 028cadff414479dfd974aec0a391d806
+    name: grid_ibge_censo2010_info
+    title: Grade Estatística IBGE Compacta, com dados do Censo de 2010
+    innerpath: grid_ibge_censo2010_info.csv
+    profile: tabular-data-resource
+    schema:
+      fields:
+        - name: gid
+          type: integer
+          title: Geometric (cell) IDentifier
+        - name: pop
+          title: População (habitantes na célula)
+          type: integer
+        - name: pop_fem_perc
+          title: Percentual de população feminina
+          type: integer
+        - name: dom_ocu
+          title: domicílios ocupados
+          type: integer
+        - name: is_cache
+          title: É 'cache' de sumarização
+          type: string
+    scheme: file
+  - path: data/quadrantes.geojson
+    encoding: utf-8
+    format: geojson
+    hashing: md5
+    hash: 894da2340462ae16a8e3931aa529fae2
+    name: quadrantes
+    title: Quadrantes recordados da Grade Estatística
+    profile: data-resource
+    scheme: file
+  - path: data/md5sum.txt
+    encoding: utf-8
+    format: txt
+    hashing: md5
+    name: md5sum
+    profile: data-resource
+    scheme: file
+  - path: data/sha256sum.txt
+    encoding: utf-8
+    format: txt
+    hashing: md5
+    name: sha256sum
+    profile: data-resource
+    scheme: file

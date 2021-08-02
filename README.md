@@ -16,13 +16,18 @@ Sumário:
 * [INSTALAÇÃO, COMPATIBILIDADE, BIBLIOTECA, ETC](#instalação,-compatibilidade,-biblioteca,-etc)
 * [DISTRIBUIÇÃO DA GRADE COMPACTA](#distribuição-da-grade-compacta)
 
+ATALHOS PARA A DISTRIBUIÇÃO DOS DADOS:
+
+* _Download_ da Grade Compacta: [grid_ibge_censo2010_info.zip](https://github.com/osm-codes/BR_IBGE/raw/main/data/grid_ibge_censo2010_info.zip)
+* _Download_ da última versão estável deste repositório: ver [releases](https://github.com/osm-codes/BR_IBGE/releases).
+
 ------------
 
 O presente projeto oferece *scripts* para redistribuir mais eficientremente a Grade Estatística oficial do IBGE, e para aprimorar seu uso em bancos de dados. Resultou em uma versão otimizada, com os mesmos dados, porém viabilizando novas aplicações.
 
 O principal objetivo foi oferecer uma **estrutura de dados alternativa** à estrutura original, batizada de **Grade Estatística IBGE Compacta**, com as seguintes **vantagens**: <!-- O principal objetivo destes *scripts* é oferecer uma **estrutura de dados alternativa** à estrutura original dos *shapfiles* de grade IBGE, com as seguintes **vantagens**:-->
 
-1. **reduzir o tamanho da distribuição** da geometria da grade, de 849&nbsp;Mb (56 arquivos zip) para um só arquivo 44&nbsp;Mb zip (**5%** dos 849&nbsp;Mb).
+1. **reduzir o tamanho da distribuição** da geometria da grade, de 849&nbsp;Mb (56 arquivos zip) para um só arquivo zip de 44&nbsp;Mb (**5%**&nbsp;dos&nbsp;849). **Disponível [aqui como `grid_ibge_censo2010_info.zip`](data/grid_ibge_censo2010_info.zip)**.
 
 2. **estruturar de forma mais simples**, capaz de reproduzir funcionalmente os dados estrutura originais, e capaz ainda de ser utilizada:  
 
@@ -44,7 +49,7 @@ Se você nunca havia antes ouvido falar, veja o [filminho didáco sobre ela](htt
 
  A "grade" do IBGE é na verdade um **conjunto hierarquizado de grades** (ou _"grid system"_), aparentemente seguindo as recomendações [INSPIRE *D2.8.I.2*](https://inspire.ec.europa.eu/documents/Data_Specifications/INSPIRE_DataSpecification_GG_v3.1.pdf), "Data Specification on Geographical Grid Systems – Technical Guidelines" de 2014, ou anterior.
 
-Cada quadrante da grade IBGE  de menor escala (na ilustração acima a grade nível *L0*) é subdividio em quadrados com lado medindo 1/5 ou 1/2 do seu tamanho para formar a grade seguinte, de menor escala e maior resolução.
+Cada quadrante da grade IBGE  de menor escala (na [ilustração do sumário](#grade-estatística-ibge-em-representação-compacta) a grade nível *L0*) é subdividio em quadrados com lado medindo 1/5 ou 1/2 do seu tamanho para formar a grade seguinte, de menor escala e maior resolução.
 A grade seguinte à *L0*, a *L1*, tem quadrados com 500/5&nbsp;km&nbsp;=&nbsp;100&nbsp;km de lado; a seguinte *L2* com 100/2&nbsp;km&nbsp;=&nbsp;50&nbsp;km; *L3* com 50/5&nbsp;km&nbsp;=&nbsp;10&nbsp;km; *L4* com 10/2&nbsp;km&nbsp;=&nbsp;5&nbsp;km; *L6* com 5/5&nbsp;km&nbsp;=&nbsp;**1&nbsp;km**.
 
 Na distribuição da gemetria das grades de 200m e 1km foram acrescentados **dados relevantes do Censo de 2010**.
@@ -199,7 +204,7 @@ Conforme necessidades, os _scripts_ SQL podem ser facilmente adaptados, desde qu
 ## API
 As funções de resolução para uso na API são descritas no README do `/src`. Com devidas configurações no NGINX elas se tornam os seguintes _endpoints_:
 
-* ... osm.org/geo:br_ibge2010:{nome} ou {gid}  .. idem osm.org/geo:br_cep:04569010  por hora retorna CRP. ou busca br_crp mas 
+* ... osm.org/geo:br_ibge2010:{nome} ou {gid}  .. idem osm.org/geo:br_cep:04569010  por hora retorna CRP. ou busca br_crp mas
 * Endpoint `br_ibge.osm.org/{cell_id}`:  retorna célula solicitada na sintaxe original,  por exemplo `5KME5300N9630`.
 * Endpoint `br_ibge.osm.org/geo:{lat},{long}`:  efeua `search_cell(p_x,p_y,5)`, ou seja, retorna célula de 1km.
 * Endpoint `br_ibge.osm.org/geo:{lat},{long};u={uncertainty}`: usa a incerteza para deduzir o nível mais próximo e efeuar `search_cell(p_x,p_y,p_level)`. Por exemplo erro de 5km a 10km retorna células de 10 km.

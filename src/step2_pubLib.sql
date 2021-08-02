@@ -7,9 +7,25 @@
  */
 
 CREATE extension IF NOT EXISTS postgis;
+CREATE extension IF NOT EXISTS adminpack;  -- for pg_file_write
 
 -------------------------------
 -- system -generic
+
+CREATE or replace FUNCTION volat_file_write(
+  file text,
+  fcontent text,
+  msg text DEFAULT 'Ok',
+  append boolean DEFAULT false
+) RETURNS text AS $f$
+  -- solves de PostgreSQL problem of the "LAZY COALESCE", as https://stackoverflow.com/a/42405837/287948
+  SELECT msg ||'. Content bytes '|| CASE WHEN append THEN 'appended:' ELSE 'writed:' END
+         ||  pg_catalog.pg_file_write(file,fcontent,append)::text
+         || E'\nSee '|| file
+$f$ language SQL volatile;
+COMMENT ON FUNCTION volat_file_write
+  IS 'Do lazy coalesce. To use in a "only write when null" condiction of COALESCE(x,volat_file_write()).'
+;
 
 CREATE or replace FUNCTION pg_relation_lines(p_tablename text)
 RETURNS bigint LANGUAGE 'plpgsql' AS $f$
@@ -89,7 +105,7 @@ CREATE or replace FUNCTION ST_AsGeoJSONb( -- ST_AsGeoJSON_complete
   -- st_asgeojsonb(geometry, integer, integer, bigint, jsonb
   p_geom geometry,
   p_decimals int default 6,
-  p_options int default 1,  -- 1=better (implicit WGS84) tham 5 (explicit)
+  p_options int default 0,  -- 0=better, 1=(implicit WGS84) tham 5 (explicit)
   p_id text default null,
   p_properties jsonb default null,
   p_name text default null,

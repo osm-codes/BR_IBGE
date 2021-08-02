@@ -21,6 +21,9 @@ info:
 	@echo " * grid_alt1_checksums: create TXT files of checksums, from IBGE downloads"
 	@echo " * grid_alt1_toZip: generates the compact Zip after build from new original version"
 	@echo " * grid_alt1_clean: remove all IBGE tables and files"
+	@echo " * validate: validates dtapackage"
+	@echo " * grid_toGeoJSON: save GeoJSON file for level1"
+
 
 ## Abstract targets:
 
@@ -68,6 +71,15 @@ grid_alt1_toZip:
 	rm -f /tmp/grid_ibge_censo2010_info.zip
 	zip -j /tmp/grid_ibge_censo2010_info.zip /tmp/grid_ibge_censo2010_info.csv
 	@echo "Saved zip at /tmp"
+
+validate:
+	frictionless validate ../datapackage.yaml
+
+grid_toGeoJSON:
+	@echo "ASSERTs and Write /tmp/grid_ibge500km.geojson"
+	psql $(pg_uri)/$(pg_db) < step6_asserts.sql
+	psql $(pg_uri)/$(pg_db) -c "SELECT pg_catalog.pg_file_unlink('/tmp/grid_ibge100km.geojson') AS rm_csv_file"
+	psql $(pg_uri)/$(pg_db) -c "SELECT * FROM vw_write_grid_ibge100km"
 
 ## Concrete cleaner targets:
 

@@ -1,4 +1,27 @@
 /*
+ * QGIS data visualization
+ */
+
+CREATE VIEW vw_grid_ibge_l0 AS
+  SELECT *, grid_ibge.gid_to_name(gid) id_unico, grid_ibge.draw_cell(gid) geom
+  FROM grid_ibge.censo2010_info WHERE gid&7=0;
+CREATE VIEW vw_grid_ibge_l1 AS
+  SELECT *, grid_ibge.gid_to_name(gid) id_unico, grid_ibge.draw_cell(gid) geom
+  FROM grid_ibge.censo2010_info WHERE gid&7=1;
+
+CREATE VIEW vw_grid_ibge_l1_geojson AS
+  SELECT volat_file_write(
+          '/tmp/quadrantes.geojson',
+          jsonb_build_object('type','FeatureCollection', 'features', gj)::text
+       )
+  FROM (
+    SELECT jsonb_agg( ST_AsGeoJSONb( ST_Transform(t1.geom,4326), 6, 0, gid::text, to_jsonb(t2) ) ORDER BY t1.gid ) AS gj
+    FROM vw_grid_ibge_l0 t1, lateral (select id_unico,pop,pop_fem_perc,dom_ocu) t2
+
+  ) t3;
+
+
+/*
  * ASSERTs - Testes de Regressão
  */
 
@@ -21,6 +44,9 @@ begin
   ASSERT grid_ibge.gid_to_ptref(5300000096300004)='{5300000,9630000,4}'::int[],     '2.4. Coordenadas (do ponto de referência) e nível do gid 5300000096300004';
   ASSERT grid_ibge.gid_to_ptcenter(5300000096300004)='{5302500,9632500,4}'::int[],  '2.5. Coordenadas (do ponto central) e nível do gid 5300000096300004';
   ASSERT grid_ibge.ptcenter_to_gid(5302500,9632500,4)=5300000096300004::bigint,     '2.6. ptcenter_to_gid';
+  ASSERT grid_ibge.gid_to_name(5300000096300004::bigint)='5KME5300N9630',           '2.7. gid_to_name 5KM';
+  ASSERT grid_ibge.gid_to_name(5700000086500001::bigint)='100KME5700N8650',         '2.8. gid_to_name 100KM';
+  ASSERT grid_ibge.gid_to_name(4982000078122006::bigint)='200ME49820N78122',        '2.9. gid_to_name 200M';
 
   RAISE NOTICE '3. Testando busca de célula contendo ponto...';
   ASSERT grid_ibge.search_cell_bylatlon(-23.550278,-46.633889,1)=5700000086500001::bigint,  '3.1. search_cell_bylatlon ponto ';
@@ -31,45 +57,3 @@ begin
   ---
 end;
 $tests$ LANGUAGE plpgsql;
-
-
-/*  TESTE VISUAL NO QGIS:
-DROP TABLE test01_marcozero_l6;
-DROP TABLE test01_marcozero_l5;
-DROP TABLE test02_sul1_id04;
-DROP TABLE test05_level1;
-DROP TABLE test06_level0;
-
-CREATE TABLE test01_marcozero AS
-  SELECT gid, grid_ibge.gid_to_ptcenter(gid) center, grid_ibge.draw_cell(gid) geom
-  FROM (
-      SELECT grid_ibge.search_cell_bylatlon(-23.550278,-46.633889,l) gid
-      FROM generate_series(0,6) t1(l)
-  ) t2
-;
-CREATE TABLE test02_sul1_id04 AS
-  SELECT gid, grid_ibge.gid_to_ptcenter(gid) center, grid_ibge.draw_cell(gid) geom
-  FROM (
-      SELECT grid_ibge.search_cell_bylatlon(-31.7606,-52.4105,l) gid
-      FROM generate_series(0,6) t1(l)
-  ) t2
-;
-CREATE TABLE test01_marcozero_l6 AS
-  SELECT gid, grid_ibge.draw_cell(gid) geom
-  FROM (
-      SELECT grid_ibge.search_cell_bylatlon(-23.550278,-46.633889,6) gid
-  ) t2
-;
-CREATE TABLE test01_marcozero_l5 AS
-  SELECT 1 as gid, grid_ibge.draw_cell(5756000,8700600,500) geom
-;
-DROP TABLE test01_marcozero;
-CREATE TABLE test01_marcozero AS
-  SELECT gid, grid_ibge.draw_cell(gid) geom
-  FROM grid_ibge.censo2010_info
-  WHERE gid IN (
-    5756000008700800006::bigint, 5756000008701000006::bigint, 5756000008701000005::bigint, 5756000008702000005::bigint,
-    5800000008550000001::bigint, 5800000008650000001::bigint
-  )
-;
-*/

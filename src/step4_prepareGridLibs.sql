@@ -81,11 +81,10 @@ COMMENT ON FUNCTION grid_ibge.gid_to_ptref
 ;
 
 CREATE or replace FUNCTION grid_ibge.gid_to_name(gid bigint) RETURNS text AS $f$
-  -- CORRIGIR conforme name_200m etc. do original.
   SELECT grid_ibge.level_to_prefix((gid & 7::bigint)::int)
-         || substr(p,1,7)||'E'
-         || substr(p,8,8)||'N-corrigir'
-  FROM ( SELECT gid::text p ) t
+         ||'E'|| substr(p,1,digits)  -- full=substr(p,1,7)
+         ||'N'|| substr( (substr(p,8,digits+1)::int)::text, 1, digits)   -- full=substr(p,8,8)
+  FROM ( SELECT gid::text p, CASE WHEN gid&7=6 THEN 5 ELSE 4 END digits ) t
 $f$ LANGUAGE SQL IMMUTABLE;
 COMMENT ON FUNCTION grid_ibge.gid_to_ptref
   IS 'Converts Bigint gid into original IBGE cell-name.'
@@ -360,8 +359,8 @@ $f$ LANGUAGE SQL IMMUTABLE;
 CREATE VIEW grid_ibge.vw_original_ibge_rebuild AS
   SELECT gid,
          grid_ibge.gid_to_name(gid) AS id_unico, -- revisar
-         grid_ibge.gid_to_name(gid) 'nome_1km' AS nome_1km,  --revisar
-         --grid_ibge.gid_to_quadrante(gid) quadrante,
+         -- grid_ibge.gid_to_name(grid_ibge.search_gid_to_gid(gid,5)) 'nome_1km' AS nome_1km,  --revisar
+         --grid_ibge.gid_to_quadrante(gid) quadrante, -- revisar
          pop-fem AS masc,
          fem,
          pop,
