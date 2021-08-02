@@ -20,6 +20,10 @@ ATALHOS PARA A DISTRIBUIÇÃO DOS DADOS:
 
 * _Download_ da Grade Compacta: [grid_ibge_censo2010_info.zip](https://github.com/osm-codes/BR_IBGE/raw/main/data/grid_ibge_censo2010_info.zip)
 * _Download_ da última versão estável deste repositório: ver [releases](https://github.com/osm-codes/BR_IBGE/releases).
+* GeoJSONs de amostra dos primeiros níveis:
+   - "quadrantes" na forma de [grade da cobertura *L0* recortada pela *L5*](http://git.osm.codes/BR_IBGE/blob/main/data/quadrantes.geojson);
+   - [grade da cobertura *L0* (sem recortes)](http://git.osm.codes/BR_IBGE/blob/main/data/grid_ibge500km.geojson);
+   - [grade da cobertura *L1* (sem recortes)](http://git.osm.codes/BR_IBGE/blob/main/data/grid_ibge100km.geojson).
 
 ------------
 

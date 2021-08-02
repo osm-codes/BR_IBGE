@@ -76,9 +76,12 @@ validate:
 	frictionless validate ../datapackage.yaml
 
 grid_toGeoJSON:
-	@echo "ASSERTs and Write /tmp/grid_ibge500km.geojson"
+	@echo "-- ASSERTs and GeoJSON generation:"
 	psql $(pg_uri)/$(pg_db) < step6_asserts.sql
-	psql $(pg_uri)/$(pg_db) -c "SELECT pg_catalog.pg_file_unlink('/tmp/grid_ibge100km.geojson') AS rm_csv_file"
+	@echo "GeoJSON 500KM and 100KM grids:"
+	psql $(pg_uri)/$(pg_db) -c "SELECT pg_catalog.pg_file_unlink('/tmp/grid_ibge500km.geojson') AS rm_csv_file100km"
+	psql $(pg_uri)/$(pg_db) -c "SELECT pg_catalog.pg_file_unlink('/tmp/grid_ibge100km.geojson') AS rm_csv_file500km"
+	psql $(pg_uri)/$(pg_db) -c "SELECT * FROM vw_write_grid_ibge500km"
 	psql $(pg_uri)/$(pg_db) -c "SELECT * FROM vw_write_grid_ibge100km"
 
 ## Concrete cleaner targets:
