@@ -18,8 +18,8 @@ Sumário:
 
 ATALHOS PARA A DISTRIBUIÇÃO DOS DADOS:
 
-* _Download_ da Grade Compacta: [grid_ibge_censo2010_info.zip](https://github.com/osm-codes/BR_IBGE/raw/main/data/grid_ibge_censo2010_info.zip)
-* _Download_ da última versão estável deste repositório: ver [releases](https://github.com/osm-codes/BR_IBGE/releases).
+* _Download_ da Grade Compacta: [**`grid_ibge_censo2010_info.zip`**](http://git.osm.codes/BR_IBGE/raw/main/data/grid_ibge_censo2010_info.zip)
+* _Download_ da última versão estável deste repositório: ver [releases](http://git.osm.codes/BR_IBGE/releases).
 * GeoJSONs de amostra dos primeiros níveis:
    - "quadrantes" na forma de [grade da cobertura *L0* recortada pela *L5*](http://git.osm.codes/BR_IBGE/blob/main/data/quadrantes.geojson);
    - [grade da cobertura *L0* (sem recortes)](http://git.osm.codes/BR_IBGE/blob/main/data/grid_ibge500km.geojson);
@@ -31,17 +31,19 @@ O presente projeto oferece *scripts* para redistribuir mais eficientremente a Gr
 
 O principal objetivo foi oferecer uma **estrutura de dados alternativa** à estrutura original, batizada de **Grade Estatística IBGE Compacta**, com as seguintes **vantagens**: <!-- O principal objetivo destes *scripts* é oferecer uma **estrutura de dados alternativa** à estrutura original dos *shapfiles* de grade IBGE, com as seguintes **vantagens**:-->
 
-1. **reduzir o tamanho da distribuição** da geometria da grade, de 849&nbsp;Mb (56 arquivos zip) para um só arquivo zip de 44&nbsp;Mb (**5%**&nbsp;dos&nbsp;849). **Disponível [aqui como `grid_ibge_censo2010_info.zip`](data/grid_ibge_censo2010_info.zip)**.
+1. **indexar a grade diretamente pelos seus geocódigos**: o identificador interno de célula, *gid*, pode ser o próprio nome ou geocódigo binário da célula, tornando as operações de busca e recuperação muito mais simples e rápidas.
 
-2. **estruturar de forma mais simples**, capaz de reproduzir funcionalmente os dados estrutura originais, e capaz ainda de ser utilizada:  
+2. **reduzir o tamanho da distribuição** da geometria da grade, de 849&nbsp;Mb (56 arquivos zip) para um só arquivo zip de 44&nbsp;Mb (**5%**&nbsp;dos&nbsp;849).
 
-   2.1. **em qualquer banco de dados SQL simples** (por ex. [SQLite](https://en.wikipedia.org/wiki/SQLite)), sem necessidade de extensões GIS ou geometria.
+3. **estruturar de forma mais simples**, capaz de reproduzir funcionalmente os dados estrutura originais, e capaz ainda de ser utilizada:  
 
-   2.2. **no [PostGIS](https://en.wikipedia.org/wiki/PostGIS)** com as mesmas (ou mais) aplicações que a distribuição original. <br/>Em paricular **otimizar** os algoritmos de "resolução dos identificadores de célula" (*encode/decode*), e de posição espacial em identificador de célula.
+   3.1. **em qualquer banco de dados SQL simples** (por ex. [SQLite](https://en.wikipedia.org/wiki/SQLite)), sem necessidade de extensões GIS ou geometria.
 
-3. **reduzir a ocupação em disco no banco de dados SQL** (a 20% ou menos do tamanho original).
+   3.2. **no [PostGIS](https://en.wikipedia.org/wiki/PostGIS)** com as mesmas (ou mais) aplicações que a distribuição original. <br/>Em paricular **otimizar** os algoritmos de "resolução dos identificadores de célula" (*encode/decode*), e de posição espacial em identificador de célula.
 
-4. **distribuir em formato mais aberto** (não-proprietário) e mais simples e interoperável do que o [Shapefile](https://en.wikipedia.org/wiki/Shapefile): o formato [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) é legível até por planilha (ex. Excel) e é um padrão aberto universal.
+4. **reduzir a ocupação em disco no banco de dados SQL** (a 20% ou menos do tamanho original).
+
+5. **distribuir em formato mais aberto** (não-proprietário) e mais simples e interoperável do que o [Shapefile](https://en.wikipedia.org/wiki/Shapefile): o formato [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) é legível até por planilha (ex. Excel) e é um padrão aberto universal.
 
 # CONVENÇÕES DO IBGE
 
@@ -180,6 +182,8 @@ CREATE VIEW test_grade_level1 AS
 Abaixo ilustradas as grades *L0* e *L1*  com respectivamente células de lado 500KM e 100KM, em seguida um zoom para destacar a VIEW da grade *L2* de 50KM.
 
 ![](assets/grades-L0_L1.png)
+
+As grades *L0* e *L1* podem também ser visualizadas no repositório git, respectivamente como [`grid_ibge500km.geojson`](http://git.osm.codes/BR_IBGE/blob/main/data/grid_ibge500km.geojson) e [`grid_ibge100km.geojson`](http://git.osm.codes/BR_IBGE/blob/main/data/grid_ibge100km.geojson).
 
 ![](assets/grades-L0_L1_L2.png)
 

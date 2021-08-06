@@ -1,39 +1,4 @@
 /*
- * QGIS data visualization
- */
-
-CREATE VIEW vw_grid_ibge_l0 AS
-  SELECT *, grid_ibge.gid_to_name(gid) id_unico, grid_ibge.draw_cell(gid) geom
-  FROM grid_ibge.censo2010_info WHERE gid&7=0
-;
-CREATE VIEW vw_grid_ibge_l1 AS
-  SELECT *, grid_ibge.gid_to_name(gid) id_unico, grid_ibge.draw_cell(gid) geom
-  FROM grid_ibge.censo2010_info WHERE gid&7=1
-;
-
-CREATE VIEW vw_write_grid_ibge500km AS
-  SELECT volat_file_write(
-          '/tmp/grid_ibge500km.geojson',
-          jsonb_build_object('type','FeatureCollection', 'features', gj)::text
-       )
-  FROM (
-    SELECT jsonb_agg( ST_AsGeoJSONb( ST_Transform(t1.geom,4326), 6, 0, gid::text, to_jsonb(t2) ) ORDER BY t1.gid ) AS gj
-    FROM vw_grid_ibge_l0 t1, lateral (select id_unico,pop,pop_fem_perc,dom_ocu) t2
-
-  ) t3;
-
-CREATE VIEW vw_write_grid_ibge100km AS
-  SELECT volat_file_write(
-          '/tmp/grid_ibge100km.geojson',
-          jsonb_build_object('type','FeatureCollection', 'features', gj)::text
-       )
-  FROM (
-    SELECT jsonb_agg( ST_AsGeoJSONb( ST_Transform(t1.geom,4326), 6, 0, gid::text, to_jsonb(t2) ) ORDER BY t1.gid ) AS gj
-    FROM vw_grid_ibge_l1 t1, lateral (select id_unico,pop,pop_fem_perc,dom_ocu) t2
-
-  ) t3;
-
-/*
  * ASSERTs - Testes de Regressão
  */
 
@@ -69,3 +34,36 @@ begin
   ---
 end;
 $tests$ LANGUAGE plpgsql;
+
+
+/*
+ * QGIS data visualization
+ */
+
+CREATE VIEW vw_grid_ibge_l0 AS
+  SELECT *, grid_ibge.gid_to_name(gid) id_unico, grid_ibge.draw_cell(gid) geom
+  FROM grid_ibge.censo2010_info WHERE gid&7=0
+;
+CREATE VIEW vw_grid_ibge_l1 AS
+  SELECT *, grid_ibge.gid_to_name(gid) id_unico, grid_ibge.draw_cell(gid) geom
+  FROM grid_ibge.censo2010_info WHERE gid&7=1
+;
+/* gravando views como texto GeoJSON.
+write_grid_ibge500km e write_grid_ibge100km:
+SELECT write_geojson_Features(
+  'vw_grid_ibge_l0'
+  '/tmp/grid_ibge500km.geojson',
+  'ST_Transform(t1.geom,4326)',
+  'id_unico,pop,pop_fem_perc,dom_ocu',
+  array['gid'],
+  'gid'
+);
+SELECT write_geojson_Features(
+  'vw_grid_ibge_l1'
+  '/tmp/grid_ibge100km.geojson',
+  'ST_Transform(t1.geom,4326)',
+  'id_unico,pop,pop_fem_perc,dom_ocu',
+  array['gid'],
+  'gid'
+);
+*/

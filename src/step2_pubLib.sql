@@ -27,6 +27,70 @@ COMMENT ON FUNCTION volat_file_write
   IS 'Do lazy coalesce. To use in a "only write when null" condiction of COALESCE(x,volat_file_write()).'
 ;
 
+CREATE or replace FUNCTION  stragg_prefix(prefix text, s text[], sep text default ',') RETURNS text AS $f$
+  SELECT string_agg(x,sep) FROM ( select prefix||(unnest(s)) ) t(x)
+$f$ LANGUAGE SQL IMMUTABLE;
+
+CREATE or replace FUNCTION write_geojson_Features(
+  sql_tablename text, -- ex. 'vw_grid_ibge_l1' or 'SELECT * FROM t WHERE cond'
+  p_file text, -- ex. '/tmp/grid_ibge100km.geojson'
+  sql_geom text DEFAULT 't1.geom', -- sql using t1 as alias for geom, eg. ST_Transform(t1.geom,4326)
+  p_cols text DEFAULT NULL, -- null or list of p_properties. Ex. 'id_unico,pop,pop_fem_perc,dom_ocu'
+  p_cols_orderby text[] DEFAULT NULL,
+  col_id text default null, -- p_id, expressed as t1.colName. Ex. 't1.gid::text'
+  p_decimals int default 6,
+  p_options int default 0,  -- 0=better, 1=(implicit WGS84) tham 5 (explicit)
+  p_name text default null,
+  p_title text default null,
+  p_id_as_int boolean default false
+)
+RETURNS text LANGUAGE 'plpgsql' AS $f$
+  DECLARE
+    msg text;
+    sql_orderby text;
+    sql_pre text;
+    sql text;
+  BEGIN
+      IF position(' ' in trim(sql_tablename))>0 THEN
+        sql_tablename := '('||sql_tablename||')';
+      END IF;
+      sql_orderby := CASE
+        WHEN p_cols_orderby IS NULL OR array_length(p_cols_orderby,1) IS NULL THEN ''
+        ELSE 'ORDER BY '||stragg_prefix('t1.',p_cols_orderby) END;
+      sql_pre := format($$
+        ST_AsGeoJSONb( %s, %s, %s, %s, %s, %s, %s, %s) %s
+        $$,
+        sql_geom, p_decimals::text, p_options::text,
+        CASE WHEN col_id is null THEN 'NULL' ELSE 't1.'||col_id||'::text' END,
+        CASE WHEN p_cols is null THEN 'NULL' ELSE 'to_jsonb(t2)' END,
+        p_name, p_title, p_id_as_int,
+        sql_orderby
+      );
+      -- RAISE NOTICE '--- DEBUG sql_pre: %', sql_pre
+      -- ex. 'ST_AsGeoJSONb( ST_Transform(t1.geom,4326), 6, 0, t1.gid::text, to_jsonb(t2) ) ORDER BY t1.gid'
+      sql := format($$
+        SELECT volat_file_write(
+                %L,
+                jsonb_build_object('type','FeatureCollection', 'features', gj)::text
+             )
+        FROM (
+          SELECT jsonb_agg( %s ) AS gj
+          FROM %s t1 %s
+        ) t3
+       $$,
+       p_file, sql_pre, sql_tablename,
+       CASE WHEN p_cols IS NULL THEN '' ELSE ', LATERAL (SELECT '||p_cols||') t2' END
+      );
+      -- RAISE NOTICE E'--- DEBUG SQL: ---\n%\n', sql
+      EXECUTE sql INTO msg;
+      RETURN msg;
+  END
+$f$;
+COMMENT ON FUNCTION write_geojson_Features
+  IS 'run file_write() dynamically to save specified relation as GeoJSON FeatureCollection.'
+;
+
+----------
 CREATE or replace FUNCTION pg_relation_lines(p_tablename text)
 RETURNS bigint LANGUAGE 'plpgsql' AS $f$
   DECLARE
