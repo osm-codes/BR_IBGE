@@ -48,10 +48,10 @@ grid_alt1_fromOrig:
 	psql $(pg_uri)/$(pg_db) < step5opt1_fromOriginal.sql
 	psql $(pg_uri)/$(pg_db) < step6_asserts.sql
 
-grid_alt2_fromZip: ../../data/BR_IBGE/grid_ibge_censo2010_info.zip
+grid_alt2_fromZip: ../data/grid_ibge_censo2010_info.zip
 	@echo "recuperando dados do git no PostgreSQL"
 	psql $(pg_uri)/$(pg_db) < step4_prepareGridLibs.sql
-	unzip -d /tmp  ../../data/BR_IBGE/grid_ibge_censo2010_info.zip
+	unzip -d /tmp  ../data/grid_ibge_censo2010_info.zip
 	psql $(pg_uri)/$(pg_db) < step5opt2_fromCsv.sql
 	rm -f /tmp/grid_ibge_censo2010_info.csv
 	psql $(pg_uri)/$(pg_db) < step6_asserts.sql
