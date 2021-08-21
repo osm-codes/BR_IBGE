@@ -20,12 +20,14 @@ Como a decisão de projeto foi reusar os nomes das células como pontos de refer
 -- Depois de rodar step2 apenas.
 DROP TABLE IF EXISTS grade_id04_teste1;
 CREATE TABLE grade_id04_teste1 AS
- SELECT gid, p[2]||'-'||p[3] AS nome,
+ SELECT gid, nome_1km,
+        p[2]||'-'||p[3] AS nome_xy,
+        c[1]||'-'||c[2] AS centro_xy,
         ST_SetSRID( ST_MakePoint(p[2],p[3]),952019) pt_ref,
         ST_SetSRID( ST_MakePoint(c[1],c[2]),952019) pt_center,
         grid_ibge.draw_cell( c[1], c[2], CASE WHEN p[1]=6 THEN 100 ELSE 500 END) AS geom
  FROM (
-  SELECT grid_ibge.name_to_gid(id_unico) as gid,
+  SELECT nome_1km, grid_ibge.name_to_gid(id_unico) as gid,
          grid_ibge.name_to_parts_normalized(id_unico) p,
          grid_ibge.name_to_center(id_unico) c,
          geom2 as geom
@@ -35,7 +37,8 @@ CREATE TABLE grade_id04_teste1 AS
 ; -- pode resuzir LIMIT, é só para visualizar algo no Sul do Brasil com QGIS
 ```
 
-Para entender melhor a direção dos eixos _X_ e _Y_ na representação usual das coordenadas _XY_ Albers, e na coluna `nome_xy`, podemos visualizar apenas um pequeno trecho com os pontos de `grade_id04` no QGIS:
+Nas colunas originais de `nome_*` (ex. `nome_1km`) adotam-se as coordenadas _XY_ Albers, destacadas pela coluna `nome_xy`.
+Para entender melhor a direção dos eixos _X_ e _Y_ podemos visualizar apenas um pequeno trecho com os pontos de `grade_id04` no QGIS:
 
 ![](../assets/grades-direcoesXY.png)
 
@@ -86,6 +89,24 @@ CREATE FUNCTION grid_ibge.name_to_center(name text) RETURNS int[] AS $f$
   ) t2
 $f$ LANGUAGE SQL IMMUTABLE;
 ```
+
+### Controle sintático
+
+Os processos de *encode/decode* do geocódigo oficial da grade IBGE, ou seja, aquilo que o IBGE chama de *nome* da célula, requerem um certo controle para satisfazer as convenções adotadas pelo IBGE. Essas convenções &mdash; infelizmente não foram documentadas, foram obtidas intuitivamente e testadas sistematicamente  &mdash;  foram traduzidas em funções.
+
+As seguintes [funções da biblioteca `grid_ibge`](src/step4_prepareGridLibs.sql) garantem a **decodificação de nomes** em parâmetros da célula:
+
+* `name_to_parts(name text)` explode o nome nas suas partes (`text[]`), a partir da sua expressão regular `(\d+(?:M|KM))E(\d+)N(\d+)`, nesta ordem: largura da célula, prefixo da coordenada _X_ (leste) e prefixo da coordenada _Y_ (norte). A largura é dada com respectiva unidade (M ou KM), enquanto os prefixos de coordenada são apenas os primeiros dígitos significativos (os demais são zeros).
+
+* `prefix_to_level(prefix text)` transforma o prefixo de nome de célula, que representa a largura da célula ("200M", "1KM", "..."), em nível hierárquico. Por exemplo nível 0 para "500KM", nível 5 para "1KM".
+
+* `name_to_gid(name text)` transforma as partes do nome (largura e prefixos de coordenada) em `gid` (`bigint`). Obtém as partes com a função *name_to_parts* e o nível com *prefix_to_level*. Como a grade Albers adotada adota o metro como unidade, e o Brasil se encaixa em coordenadas _X_ de 7 dígitos e coordenadas _Y_ de 8 dígitos, o conversão apenas preenche com os zeros faltantes; tomando o cuidado de incluir zero a esquerda quando forem 7 dígitos em _Y_.
+
+A transformação de volta, **codificando o nome de célula**  a partir do `gid`, é obtida com as funções:
+
+* `level_to_prefix(level int)` devolve a largura da célula textualmente (valor e unidade), a partir do nível hierárquico. Por exemplo a largura do nível *L1* é "100KM".
+
+* `gid_to_name(gid bigint)` reconstroe o nome oficial da célula a partir do indexador `gid`. O IBGE estabeleceu 3 regras sintáticas para compor os prefixos de coordenada: nas células *L6* são expressos com 5 dígitos, nas "células padrão" com 4 dígitos e nas "células do norte" também com 5 dígitos. Esta última regra pode ser evidenciada pelas coordenadas _Y_ mais ao norte a partir do 10 mil.
 
 ## BIBLIOTECA
 

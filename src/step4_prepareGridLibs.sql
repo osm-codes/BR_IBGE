@@ -84,7 +84,10 @@ CREATE or replace FUNCTION grid_ibge.gid_to_name(gid bigint) RETURNS text AS $f$
   SELECT grid_ibge.level_to_prefix((gid & 7::bigint)::int)
          ||'E'|| substr(p,1,digits)  -- full=substr(p,1,7)
          ||'N'|| substr( (substr(p,8,digits+1)::int)::text, 1, digits)   -- full=substr(p,8,8)
-  FROM ( SELECT gid::text p, CASE WHEN gid&7=6 THEN 5 ELSE 4 END digits ) t
+  FROM (
+    SELECT p, CASE WHEN digits=4 AND substr(p,8,1)='1' THEN 5 ELSE digits END AS digits
+    FROM ( SELECT gid::text p, CASE WHEN gid&7=6 THEN 5 ELSE 4 END AS digits ) t1
+  ) t2
 $f$ LANGUAGE SQL IMMUTABLE;
 COMMENT ON FUNCTION grid_ibge.gid_to_ptref
   IS 'Converts Bigint gid into original IBGE cell-name.'
@@ -213,6 +216,19 @@ CREATE FUNCTION grid_ibge.search_xyL(p_x int, p_y int, p_level smallint) RETURNS
     LIMIT 1
   ) t1y
 $f$ LANGUAGE SQL IMMUTABLE;
+
+CREATE FUNCTION grid_ibge.search_xyL_bylatlon(
+  lat real, lon real, p_level int
+) RETURNS int[] AS $f$
+  SELECT grid_ibge.search_xyL(ST_X(geom)::int, ST_Y(geom)::int, p_level::smallint)
+  FROM (SELECT ST_Transform( ST_SetSRID( ST_MakePoint(lon,lat),4326), 952019 )) t(geom);
+$f$ LANGUAGE SQL IMMUTABLE;
+-- select grid_ibge.search_xyL_bylatlon(-23.550278::real,-46.633889::real,6::smallint);
+
+CREATE FUNCTION grid_ibge.search_xyL(geoURI text, p_level int DEFAULT 5) RETURNS int[] AS $wrap$
+  SELECT grid_ibge.search_xyL_bylatlon( p[1]::real, p[2]::real, p_level )
+  FROM ( SELECT regexp_match(geoURI,'^geo:([+\-]?\d+\.?\d*),([+\-]?\d+\.?\d*)(?:;.+)?$') ) t(p);
+$wrap$ LANGUAGE SQL IMMUTABLE;
 
 CREATE FUNCTION grid_ibge.search_to_gid(p_x int, p_y int, p_level smallint) RETURNS bigint AS $f$
   SELECT grid_ibge.ptcenter_to_gid(p[1], p[2], p_level)
@@ -373,3 +389,29 @@ CREATE VIEW grid_ibge.vw_original_ibge_rebuild AS
   ) t
 ;
 -- para visualizar no QGIS precisa criar view de um só quadrante para não sobrecarregar.
+
+
+------------------
+--- API:
+
+CREATE SCHEMA IF NOT EXISTS API;
+
+CREATE or replace FUNCTION api.resolver_geo_uri(geouri text) RETURNS JSONb AS $f$
+ SELECT jsonb_build_object(
+   'BR_IBGE_cell_L0_gid', cell_L0_gid,
+   'BR_IBGE_cell_L5_gid', cell_L5_gid,
+   'BR_IBGE_cell_L0',grid_ibge.gid_to_name( cell_L0_gid ),
+   'BR_IBGE_cell_L5',grid_ibge.gid_to_name( cell_L5_gid ),
+   'geohash', ST_GeoHash(ST_SetSRID(ST_MakePoint(p[2]::float,p[1]::float),4326), 9),
+   'BR_IBGE_cell_L5_censo2010', to_jsonb((
+     SELECT jsonb_build_object( 'pop',pop,  'dom_ocu',dom_ocu, 'pop_fem_perc',pop_fem_perc, 'pop_masc_perc',100-pop_fem_perc )
+     FROM grid_ibge.censo2010_info
+     WHERE gid=cell_L5_gid
+    ))
+   )
+  FROM (
+   SELECT p, grid_ibge.search_cell(geouri,0) cell_L0_gid,
+          grid_ibge.search_cell(geouri,5) cell_L5_gid
+  FROM ( SELECT regexp_match(geoURI,'^geo:([+\-]?\d+\.?\d*),([+\-]?\d+\.?\d*)(?:;.+)?$') ) t1(p)
+  ) t2
+$f$ LANGUAGE SQL IMMUTABLE;
