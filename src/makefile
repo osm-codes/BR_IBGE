@@ -40,6 +40,7 @@ sql_prepare:
 	psql $(pg_uri)/$(pg_db) < step2_pubLib.sql
 
 grid_orig_get:
+	@echo " (cuidado se a base não for $(pg_db)=IBGE, editar step3)"
 	sh step1_download_IBGE.sh
 	sh step3_build_IBGE.sh
 

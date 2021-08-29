@@ -13,7 +13,7 @@ Sumário:
     * [Resolução de ponto em célula](#resolução-de-ponto-em-célula)
     * [Adaptações para outros países](#adaptações-para-outros-países)
 * [API](#api)
-* [INSTALAÇÃO, COMPATIBILIDADE, BIBLIOTECA, ETC](#instalação,-compatibilidade,-biblioteca,-etc)
+* [INSTALAÇÃO, COMPATIBILIDADE, BIBLIOTECA, ETC](#instalação-compatibilidade-biblioteca-etc)
 * [DISTRIBUIÇÃO DA GRADE COMPACTA](#distribuição-da-grade-compacta)
 
 ATALHOS PARA A DISTRIBUIÇÃO DOS DADOS:

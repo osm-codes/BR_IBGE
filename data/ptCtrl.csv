@@ -1,0 +1,21 @@
+jurisdiction,name,geo_uri,wikidata_id,gid_L0,gid_L5,ibge_quadrante,ibge_nome1km
+BR-AC-RioBranco,Universidade Federal do Acre,"geo:-9.97544,-67.83122",10387829,"3,3E+15","3,505E+15",20,1KME35050N10190
+BR-AM-Manaus,Teatro Amazonas,"geo:-3.130278,-60.023333",1434444,"4,3E+15","4,332E+15",21,1KME43320N10984
+BR-AP-Oiapoque,Aeroporto De Oiapoque,"geo:3.86139,-51.79611",9586256,"4,8E+15","5,25E+15",33,1KME52500N11757
+BR-AP-Oiapoque,Ponte Binacional Franco-Brasileira,"geo:3.8569,-51.82561",996255,"4,8E+15","5,246E+15",33,1KME52460N11757
+BR-BA-Salvador,Marco da Fundação da Cidade do Salvador,"geo:-13.002025,-38.532972",58877523,"6,3E+15","6,651E+15",15,1KME6651N9841
+BR-CE-Fortaleza,Arena Castelão,"geo:-3.807267,-38.522481",958185,"6,3E+15","6,709E+15",25,1KME67090N10869
+BR-DF,Palácio Nereu Ramos,"geo:-15.799717,-47.864131",4155889,"5,3E+15","5,648E+15",13,1KME5648N9566
+BR-ES-Vitoria,Píer de Iemanjá,"geo:-20.292149,-40.28804",28055077,"6,3E+15","6,424E+15",14,1KME6424N9036
+BR-MA-SaoLuis,Teatro Arthur Azevedo,"geo:-2.529028,-44.302476",10378807,"5,8E+15","6,076E+15",24,1KME60760N11039
+BR-MT-Cuiaba,Arena Pantanal,"geo:-15.603056,-56.120556",641448,"4,3E+15","4,775E+15",12,1KME4775N9594
+BR-PA-Belem,Bosque Rodrigues Alves,"geo:-1.43056,-48.4569",10305532,"5,3E+15","5,617E+15",23,1KME56170N11173
+BR-PE-FernandoNoronha,Aeroporto de Fernando de Noronha,"geo:-3.854722,-32.428333",3312795,"7,3E+15","7,381E+15",25,1KME73810N10819
+BR-PR-FozIguacu,Marco das Três Fronteiras,"geo:-25.5925,-54.593056",2166850,"4,8E+15","4,939E+15",02,1KME4939N8486
+BR-RJ-RioJaneiro,Cristo Redentor,"geo:-22.952331,-43.210369",79961,"5,8E+15","6,109E+15",04,1KME6109N8755
+BR-RN-Natal,Fortaleza dos Reis Magos,"geo:-5.756389,-35.194722",3304114,"6,8E+15","7,062E+15",25,1KME70620N10630
+BR-RR-BoaVista,Aeroporto Internacional de Boa Vista,"geo:2.84139,-60.69222",597669,"3,8E+15","4,242E+15",31,1KME42420N11638
+BR-RR-Uiramuta,Parque Nacional do Monte Roraima,"geo:5.20194,-60.7369",578202,"3,8E+15","4,231E+15",31,1KME42310N11893
+BR-RS-SantaVitoriaPalmar,Farol da Barra do Chuí,"geo:-33.7417,-53.3736",2839542,"4,8E+15","5,061E+15",02,1KME5061N7615
+BR-RS-Uraguaiana,Aeroporto Internacional de Uruguaiana,"geo:-29.78333,-57.03694",2744827,"4,3E+15","4,695E+15",02,1KME4695N8031
+BR-SP-SaoPaulo,Marco Zero de São Paulo,"geo:-23.550385,-46.633956",10325364,"5,3E+15","5,756E+15",03,1KME5756N8700

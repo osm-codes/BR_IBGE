@@ -2,6 +2,9 @@
 
 * [INTRODUÇÃO](#introdução)
 
+    * Controle sintático
+    * Sistemas de coordenadas padronizados
+
 * [BIBLIOTECA](#biblioteca)
     * Uso geral
     * Interação PostgREST
@@ -9,6 +12,8 @@
 * [INSTALAÇÃO](#instalação)
     * [Instalando somente o zip](#instalando-somente-o-zip)
     * [Reproduzindo o processo completo](#reproduzindo-o-processo-completo)
+    * Compatibilidade
+    * Homologação
 
 -----
 
@@ -107,6 +112,24 @@ A transformação de volta, **codificando o nome de célula**  a partir do `gid`
 * `level_to_prefix(level int)` devolve a largura da célula textualmente (valor e unidade), a partir do nível hierárquico. Por exemplo a largura do nível *L1* é "100KM".
 
 * `gid_to_name(gid bigint)` reconstroe o nome oficial da célula a partir do indexador `gid`. O IBGE estabeleceu 3 regras sintáticas para compor os prefixos de coordenada: nas células *L6* são expressos com 5 dígitos, nas "células padrão" com 4 dígitos e nas "células do norte" também com 5 dígitos. Esta última regra pode ser evidenciada pelas coordenadas _Y_ mais ao norte a partir do 10 mil.
+
+### Sistemas de coordenadas padronizados
+
+Algumas funcções de biblioteca trabalham em sistemas de coordenadas diferentes, mas todos são internamente padronizados, seguindo as seguintes convenções:
+
+1. **LatLon** GeoURI, **(*lat,lon,uncert*)** &nbsp; onde *lat* é latitude, *lon* é longitude e _uncert_ é incerteza (raio do disco de incerteza em metros). O SRID do GeoURI é o 4326.
+
+2. **XY** Albers, **(*x,y,Level*)**  &nbsp; onde *x* e *y* são as coordenadas Albers e _Level_ o nível hierárquico da grade.
+
+3. **IJ** Unitário,  **(*i,j,s*)**   &nbsp; onde *i* e *j* são  índices da "grade quadrada unitária" e *s*, *size*, é o tamanho do lado da célula desta grade (portanto determina a resolução da grade unitária e seu nível).
+
+Transformações padronizadas:
+
+* **(*lat,lon,uncert*)→(*x,y,L*)** &nbsp; Implementada por `ST_Transform(geom,952019)` e `uncertain_to_size(uncert)`.
+* **(*x,y,L*)→(*i,j,s*)** &nbsp; Implementada por `xyL_to_ijs(x,y,L)`.
+* **(*i,j,s*)→(*x,y,L*)** &nbsp; As coordenadas *XY* quantizadas podem ser obtidas de volta tomando-se um ponto interior de referência na célula. Implementada por `ijS_to_cellref(i,j,s)`.
+
+![](../assets/BR_IBGE-coords1.png)
 
 ## BIBLIOTECA
 
@@ -235,3 +258,18 @@ make
 
 O `make` sem target vai apnas listar as opções. Para rodar um target específico usar `make nomeTarget`.
 Para rodar com outra base ou outra URI de conexão com PostreSQL server, usar por exemplo <br/>`make db=outraBase pg_uri=outraConexao nomeTarget`.
+
+### Homologação
+
+Homologar significa assegurar que todos os aspectos críticos ou relevantes do sistema implementado estejam 100% em conformidade com o especificado.
+
+Podemos assegurar através de comparações com o original, em alguns casos o teste comparativo pode ser sistemático, ou seja, varrendo-se todos os itens existentes; em outros, por limitação de tempo ou CPU, se restringe a uma amostragem representativa.
+
+Foram criadas duas VIEWS para essa finaldiade:
+* ....
+
+Aspectos selecionados e respectivos testes, baseados em comparação com os shapfiles originais do IBGE:
+
+* **Geometria das células**: certificadas pela sobreposição exata
+
+* **Nomenclatura das células**

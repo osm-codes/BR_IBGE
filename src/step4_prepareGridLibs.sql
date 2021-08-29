@@ -270,34 +270,96 @@ $wrap$ LANGUAGE SQL IMMUTABLE;
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 -- Reproduzindo a grade original a partir da compacta:
 
-CREATE or replace FUNCTION grid_ibge.xy_to_quadrante(
-  -- LIXO, REVISAR!
+CREATE FUNCTION grid_ibge.uncertain_to_size(u int) RETURNS int AS $f$
+  -- GeoURI's uncertainty value "is the radius of the disk that represents uncertainty geometrically"
+  SELECT CASE -- discretization by "snap to size-levels"
+     WHEN s<500    THEN 200
+     WHEN s<2500   THEN 1000
+     WHEN s<5000   THEN 5000
+     WHEN s<25000  THEN 10000
+     WHEN s<50000  THEN 50000
+     WHEN s<250000 THEN 100000
+     ELSE               500000
+   FROM (SELECT u*2) t(s)
+$f$ LANGUAGE SQL IMMUTABLE;
+
+CREATE FUNCTION grid_ibge.xys_to_ijs(x int, y int, s int) RETURNS int[] AS $f$
+  SELECT array[ (x-2800000)/s, (y-7350000)/s, s ] -- ex.s=500000
+$f$ LANGUAGE SQL IMMUTABLE;
+
+CREATE FUNCTION grid_ibge.xyL_to_ijs(x int, y int, L int) RETURNS int[] AS $f$
+  SELECT grid_ibge.xys_to_ijs(x,y,s)
+  FROM ( SELECT level_to_size(L) ) t(s)
+$f$ LANGUAGE SQL IMMUTABLE;
+
+CREATE FUNCTION grid_ibge.ijS_to_cellref(i int, j int, s int) RETURNS int[] AS $f$
+  SELECT array[ 2800000 + i*s, 7350000 + j*s, s ]
+$f$ LANGUAGE SQL IMMUTABLE;
+
+CREATE FUNCTION grid_ibge.xyL_to_cellref(x int, y int, L int DEFAULT 0) RETURNS int[] AS $f$
+  SELECT grid_ibge.ijS_to_cellref(ijs[1], ijs[2], ijs[3])
+  FROM ( SELECT xyL_to_ijS(x,y,L) ) t(ijs)
+$f$ LANGUAGE SQL IMMUTABLE;
+
+CREATE FUNCTION grid_ibge.xyL_to_cellcenter(x int, y int, L int DEFAULT 0) RETURNS int[] AS $f$
+  SELECT array[ xyL[1]+h, xyL[2]+h, xyL[3] ]
+  FROM ( SELECT grid_ibge.xyL_to_cellref(x,y,L), L/2 ) t(xyL,h)
+$f$ LANGUAGE SQL IMMUTABLE;
+
+
+CREATE FUNCTION grid_ibge.xy_to_quadrante(x int, y int) RETURNS int AS $f$
+  -- Integer arithmetic:
+  SELECT 10*( (y-7350000)/500000 ) + (x-2800000)/500000
+  -- Real arithmetic:
+  -- SELECT 10*floor( (y-7350000)::real/500000::real )::int
+  --        + floor( (x-2800000)::real/500000::real )::int
   -- Na cobertura `(Xmin,Ymin)=(2809500,7599500)` e `(Xmax,Ymax)=(7620500,11920500)`
   -- Na grade completa? `(Xmin,Ymin)=(2805000,7575000)` e `(Xmax,Ymax)=(7650000,12100000)`
-  x int, -- X*10, first coordinate of IBGE's Albers Projection
-  y int -- Y*10, second coordinate of IBGE's Albers Projection
-) RETURNS int AS $f$
+$f$ LANGUAGE SQL IMMUTABLE;
+
+CREATE or replace FUNCTION grid_ibge.quadrantes() RETURNS int[] AS $f$
+  SELECT array[
+      4,13,14,15,23,24,25,26,27,33,34,35,36,37,39,42,43,44,45,46,47,50,51,52,53,54,55,56,
+      57,58,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,80,81,82,83,84,85,92,93
+      ]
+$f$ LANGUAGE SQL IMMUTABLE;
+COMMENT ON FUNCTION grid_ibge.quadrantes IS 'List of official quadrants.';
+
+CREATE or replace FUNCTION grid_ibge.xy_to_quadrante_valid(x int, y int) RETURNS int AS $wrap$
+  SELECT ij
+  FROM (SELECT grid_ibge.xy_to_quadrante(x,y)) t(ij)
+  WHERE ij = ANY( grid_ibge.quadrantes() )
+$wrap$ LANGUAGE SQL IMMUTABLE;
+
+CREATE FUNCTION grid_ibge.xy_to_quadrante_text(x int, y int, prefix text DEFAULT 'ID_') RETURNS text AS $wrap$
+  SELECT prefix||lpad(grid_ibge.xy_to_quadrante(x,y)::text,2,'0')
+$wrap$ LANGUAGE SQL IMMUTABLE;
+
+
+-- LIXOS para teste:
+CREATE or replace FUNCTION grid_ibge.xy_to_quadrante2( x int, y int ) RETURNS int[] AS $f$
 DECLARE
   dx0 real; dy0 real; -- deltas
   i0 int; j0 int;   -- level0 coordinates
   ij int;           -- i0 and j0 as standard quadrant-indentifier.
 BEGIN
   dx0 := x::real - 2805000::real;  dy0 := y::real - 7575000::real; -- encaixa na box dos quadrantes
-  -- BUG! reduzir 15 e 23,  não são válidos aqui:
-  i0 := floor( 10::real * dx0/7650000.0::real )::int; -- check range 0 to 9
+  i0 := floor( 10.38::real * dx0/7650000.0::real )::int; -- check range 0 to 9
   j0 := floor( 10::real * dy0/12100000.0::real )::int; -- check range 0 to 9
-  ij := i0 + j0*10;
-  IF ij NOT IN ( -- confere se entre os 54 quadrantes do território brasileiro
-        4,13,14,15,23,24,25,26,27,33,34,35,36,37,39,42,43,44,45,46,47,50,51,52,53,54,55,56,
-        57,58,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,80,81,82,83,84,85,92,93
-      ) THEN
-    RETURN NULL;
-  END IF;
-  RETURN ij;
+  RETURN array[i0,j0];
 END
-$f$ LANGUAGE plpgsql IMMUTABLE;
+$f$ LANGUAGE PLpgSQL IMMUTABLE;
 
--- FALTA grid_ibge.gid_to_quadrante
+CREATE or replace FUNCTION grid_ibge.xy_to_quadrante3(x int, y int) RETURNS int[] AS $f$
+  SELECT array[floor( (y-7350000)::real/500000::real )::int
+          , floor( (x-2800000)::real/500000::real )::int]
+$f$ LANGUAGE SQL IMMUTABLE;
+
+
+CREATE or replace FUNCTION grid_ibge.gid_to_quadrante(gid bigint) RETURNS int AS $wrap$
+  SELECT grid_ibge.xy_to_quadrante(xyL[1],xyL[2])
+  FROM ( SELECT grid_ibge.gid_to_ptcenter(gid) ) t(xyL)
+$wrap$ LANGUAGE SQL IMMUTABLE;
 
 ------
 
@@ -399,6 +461,7 @@ CREATE SCHEMA IF NOT EXISTS API;
 CREATE or replace FUNCTION api.resolver_geo_uri(geouri text) RETURNS JSONb AS $f$
  SELECT jsonb_build_object(
    'BR_IBGE_cell_L0_gid', cell_L0_gid,
+   'BR_IBGE_cell_quadrante', lpad( grid_ibge.gid_to_quadrante(cell_L5_gid)::text,2,'0' ),
    'BR_IBGE_cell_L5_gid', cell_L5_gid,
    'BR_IBGE_cell_L0',grid_ibge.gid_to_name( cell_L0_gid ),
    'BR_IBGE_cell_L5',grid_ibge.gid_to_name( cell_L5_gid ),
