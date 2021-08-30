@@ -117,12 +117,6 @@ SELECT grid_ibge.gid_to_level(gid) as nivel, COUNT(*) n_compact_cells
 FROM grid_ibge.censo2010_info
 GROUP BY 1 ORDER BY 1;
 
--- REFRESHES:
-REFRESH MATERIALIZED VIEW  grid_ibge.mvw_censo2010_info_Xsearch;  -- pode levar horas!
-REFRESH MATERIALIZED VIEW  grid_ibge.mvw_censo2010_info_Ysearch;  -- pode levar horas!
-
-SELECT min(x) x_min, max(x) x_max FROM grid_ibge.mvw_censo2010_info_Xsearch;
-SELECT min(y) y_min, max(y) y_max FROM grid_ibge.mvw_censo2010_info_Ysearch;
 
 -----------
 -- LIMPEZA:

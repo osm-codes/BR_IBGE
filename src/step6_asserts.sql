@@ -15,20 +15,20 @@ begin
   ASSERT grid_ibge.name_to_parts_normalized('5KME5300N9630')=array[4,5300000,9630000], '1.8. name_to_parts_normalized';
 
   RAISE NOTICE '2. Testando conversões de gid, nome e ponto de célula...';
-  ASSERT grid_ibge.name_to_parts('5KME5300N9630')='{5KM,5300,9630}'::text[],  '2.1. Partes de 5KME5300N9630';
-  ASSERT grid_ibge.ptcenter_to_ptref(5302500,9632500,4)='{5300000,9630000,4,2500}'::int[], '2.2. ptcenter_to_ptref';
+  ASSERT grid_ibge.name_to_parts('5KME5300N9630')='{5KM,5300,9630}'::text[],        '2.1. Partes de 5KME5300N9630';
+  ASSERT grid_ibge.xyLcenter_to_xyLref(5302500,9632500,4)='{5300000,9630000,4,2500}'::int[], '2.2. xyLcenter_to_xyLref';
   ASSERT grid_ibge.name_to_gid('5KME5300N9630')=5300000096300004::bigint,           '2.3. gid de 5KME5300N9630';
-  ASSERT grid_ibge.gid_to_ptref(5300000096300004)='{5300000,9630000,4}'::int[],     '2.4. Coordenadas (do ponto de referência) e nível do gid 5300000096300004';
-  ASSERT grid_ibge.gid_to_ptcenter(5300000096300004)='{5302500,9632500,4}'::int[],  '2.5. Coordenadas (do ponto central) e nível do gid 5300000096300004';
-  ASSERT grid_ibge.ptcenter_to_gid(5302500,9632500,4)=5300000096300004::bigint,     '2.6. ptcenter_to_gid';
+  ASSERT grid_ibge.gid_to_xyLref(5300000096300004)='{5300000,9630000,4}'::int[],    '2.4. Coordenadas (do ponto de referência) e nível do gid 5300000096300004';
+  ASSERT grid_ibge.gid_to_xyLcenter(5300000096300004)='{5302500,9632500,4}'::int[], '2.5. Coordenadas (do ponto central) e nível do gid 5300000096300004';
+  ASSERT grid_ibge.xyLcenter_to_gid(5302500,9632500,4)=5300000096300004::bigint,    '2.6. xyLcenter_to_gid';
   ASSERT grid_ibge.gid_to_name(5300000096300004::bigint)='5KME5300N9630',           '2.7. gid_to_name 5KM';
   ASSERT grid_ibge.gid_to_name(5700000086500001::bigint)='100KME5700N8650',         '2.8. gid_to_name 100KM';
   ASSERT grid_ibge.gid_to_name(4982000078122006::bigint)='200ME49820N78122',        '2.9. gid_to_name 200M';
 
   RAISE NOTICE '3. Testando busca de célula contendo ponto...';
-  ASSERT grid_ibge.search_cell_bylatlon(-23.550278,-46.633889,1)=5700000086500001::bigint,  '3.1. search_cell_bylatlon ponto ';
-  ASSERT grid_ibge.search_cell('geo:-23.550278,-46.633889',1)=5700000086500001::bigint,     '3.2. search_cell GeoURI';
-  ASSERT grid_ibge.search_cell_bylatlon(-23.550278,-46.633889,6)=5756000087008006::bigint,  '3.3. search_cell_bylatlon ponto ';
+  --ASSERT grid_ibge.search_cell_bylatlon(-23.550278,-46.633889,1)=5700000086500001::bigint,  '3.1. search_cell_bylatlon ponto ';
+  --ASSERT grid_ibge.search_cell('geo:-23.550278,-46.633889',1)=5700000086500001::bigint,     '3.2. search_cell GeoURI';
+  --ASSERT grid_ibge.search_cell_bylatlon(-23.550278,-46.633889,6)=5756000087008006::bigint,  '3.3. search_cell_bylatlon ponto ';
 
   --RAISE NOTICE '4. Testando decodificação para geometria da célula...';
   ---
@@ -40,11 +40,11 @@ $tests$ LANGUAGE plpgsql;
  * QGIS data visualization
  */
 
-CREATE VIEW vw_grid_ibge_l0 AS
+CREATE or replace VIEW vw_grid_ibge_l0 AS
   SELECT *, grid_ibge.gid_to_name(gid) id_unico, grid_ibge.draw_cell(gid) geom
   FROM grid_ibge.censo2010_info WHERE gid&7=0
 ;
-CREATE VIEW vw_grid_ibge_l1 AS
+CREATE or replace VIEW vw_grid_ibge_l1 AS
   SELECT *, grid_ibge.gid_to_name(gid) id_unico, grid_ibge.draw_cell(gid) geom
   FROM grid_ibge.censo2010_info WHERE gid&7=1
 ;

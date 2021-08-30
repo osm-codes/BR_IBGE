@@ -126,15 +126,71 @@ Algumas funcções de biblioteca trabalham em sistemas de coordenadas diferentes
 Transformações padronizadas:
 
 * **(*lat,lon,uncert*)→(*x,y,L*)** &nbsp; Implementada por `ST_Transform(geom,952019)` e `uncertain_to_size(uncert)`.
-* **(*x,y,L*)→(*i,j,s*)** &nbsp; Implementada por `xyL_to_ijs(x,y,L)`.
-* **(*i,j,s*)→(*x,y,L*)** &nbsp; As coordenadas *XY* quantizadas podem ser obtidas de volta tomando-se um ponto interior de referência na célula. Implementada por `ijS_to_cellref(i,j,s)`.
+
+* **(*x,y,L*)→(*i,j,s*)** &nbsp; A rigor não transforma, mas "collapsa" todos os pontos *XY* da célula em seu *IJ*. Implementada por `xyL_collapseTo_ijS(x,y,L)`.
+
+* **(*i,j,s*)→(*x,y,L*)** &nbsp; As coordenadas *XY* quantizadas podem ser obtidas de volta tomando-se um ponto interior de referência na célula. Implementada por `ijS_to_xySref(i,j,s)`, onde *s* (*size*) é a largura da célula-alvo.
 
 ![](../assets/BR_IBGE-coords1.png)
 
 ## BIBLIOTECA
-
 Principais funções em [`step4_prepareGridLibs.sql`](step4_prepareGridLibs.sql), para a manipulação da grade compacta e conversão entre as representações original e compacta, todas do SQL SCHEMA `grid_ibge`:
 
+... REVISANDO...
+<!-- new lib
+Usar tabela com titulo
+FUNCTION api.resolver_geo_uri(geouri text) → JSONb AS $f$
+
+gid_to_level(gid bigint) → int
+gid_to_name(gid bigint) → text
+gid_to_quadrante(gid bigint) → int: wrap
+
+gid_to_xyLref(gid bigint) → int[]
+
+ijS_to_xySref(i int, j int, s int) → int[] AS $f$
+ijS_to_xySref(xys int[]) → int[]: wrap
+
+level_to_prefix(level int) → text AS $f$
+level_to_size(level int)  → int AS $f$
+name_to_gid(name text) → bigint AS $f$
+name_to_parts_normalized(name text) → int[] AS $f$
+name_to_parts(name text) → text[] AS $f$
+
+prefix_to_level(prefix text) → int AS $f$
+quadrantes_text(prefix text DEFAULT 'ID_') → text[]: wrap
+quadrantes() → int[] AS $f$
+uncertain_to_size(u int) → int AS $f$
+
+xy_to_quadrante(x int, y int) → int AS $f$
+xy_to_quadrante(xyd int[]) → int: wrap
+xy_to_quadrante_text(x int, y int, prefix text DEFAULT 'ID_') → text: wrap
+xy_to_quadrante_text(xyd int[], prefix text DEFAULT 'ID_') → text: wrap
+xy_to_quadrante_valid(x int, y int) → int: wrap
+
+xyS_collapseTo_ijS(x int, y int, s int) → int[] AS $f$
+xyS_collapseTo_ijS(xyS int[]) → int[]: wrap
+xyL_collapseTo_ijS(x int, y int, L int) → int[] AS $f$
+xyL_collapseTo_ijS(xyL int[]) → int[]: wrap
+
+xyL_to_xySref(x int, y int, L int DEFAULT 0) → int[] AS $f$
+xyL_to_xySref(xyL int[]) → int[]: wrap
+xyLref_to_gid(x int, y int, nivel int) → bigint AS $f$
+xyLref_to_gid(xyL int[]) → bigint: wrap
+
+gid_to_xyLcenter(gid bigint) → int[] AS $f$
+name_to_xyLcenter(name text) → int[] AS $f$
+
+xyL_to_xyLcenter(x int, y int, L int DEFAULT 0) → int[] AS $f$
+xylcenter_to_gid(x int, y int, nivel int) → bigint AS $f$
+xylcenter_to_xyLref(x int, y int, nivel int) → int[] AS $f$
+draw_cell_center( -- by GID
+draw_cell_center( -- by name
+
+draw_cell(  -- ok funciona.
+draw_cell( -- by GID. BUG para 1km
+draw_cell( -- by name
+-->
+<!--
 * `coordinate_encode(x real, y real, level int)`: compacta as coordenadas XY Albers de centro de célula em *gid*, com respectivo nível da célula.
 
 * `coordinate_encode10(x10 int, y10 int, level int)`: faz o trabalho para `coordinate_encode()`, já que internamente a representação é por inteiros XY10.
@@ -150,15 +206,15 @@ Principais funções em [`step4_prepareGridLibs.sql`](step4_prepareGridLibs.sql)
 * `search_cell(p_x real, p_y real, p_level smallint)`: idem `search_xy10()` porém partindo das coordenadas XY Albers.
 
 * `draw_cell(gid bigint)`: desenha célula identificada por *gid*.
-
-<!--
+-->
+<!-- OLD:
 * grid_ibge.coordinate_encode10:
 * grid_ibge.coordinate_encode(x real, y real, level int)
 * grid_ibge.coordinate_encode(x real, y real, is_200m boolean)
 * grid_ibge.coordinate_encode(x real, y real)
 * grid_ibge.coordinate_encode10(x10 int, y10 int, level int)
 * grid_ibge.coordinate_decode10(gid bigint)
-* grid_ibge.level_decode(gid bigint) RETURNS int AS $f$
+* grid_ibge.level_decode(gid bigint) → int AS $f$
 * grid_ibge.level_to_size(level int)  
 * grid_ibge.search_xy10(p_x10 int, p_y10 int, p_level smallint)
 * grid_ibge.search_cell(p_x real, p_y real, p_level smallint)

@@ -27,7 +27,7 @@ info:
 
 ## Abstract targets:
 
-all1: sql_prepare grid_orig_get grid_alt1_fromOrig
+all1: sql_prepare grid_orig_get grid_alt1_fromOrig grid_homolog
 
 all2: sql_prepare grid_alt2_fromZip
 
@@ -41,7 +41,7 @@ sql_prepare:
 
 grid_orig_get:
 	@echo " (cuidado se a base não for $(pg_db)=IBGE, editar step3)"
-	sh step1_download_IBGE.sh
+	#sh step1_download_IBGE.sh
 	sh step3_build_IBGE.sh
 
 grid_alt1_fromOrig:
@@ -84,6 +84,10 @@ grid_toGeoJSON:
 	psql $(pg_uri)/$(pg_db) -c "SELECT pg_catalog.pg_file_unlink('/tmp/grid_ibge100km.geojson') AS rm_csv_file500km"
 	psql $(pg_uri)/$(pg_db) -c "SELECT * FROM vw_write_grid_ibge500km"
 	psql $(pg_uri)/$(pg_db) -c "SELECT * FROM vw_write_grid_ibge100km"
+
+grid_homolog:
+	cp ../data/ptCtrl.csv /tmp
+	psql $(pg_uri)/$(pg_db) < step7_homolog.sql
 
 ## Concrete cleaner targets:
 
