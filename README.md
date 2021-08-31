@@ -27,9 +27,9 @@ ATALHOS PARA A DISTRIBUIÇÃO DOS DADOS:
 
 ------------
 
-O presente projeto oferece *scripts* para redistribuir mais eficientremente a Grade Estatística oficial do IBGE, e para aprimorar seu uso em bancos de dados. Resultou em uma versão otimizada, com os mesmos dados, porém viabilizando novas aplicações.
+O presente projeto oferece *scripts* para redistribuir mais eficientemente a Grade Estatística oficial do IBGE, e para aprimorar seu uso em bancos de dados. Resultou em uma versão otimizada, com os mesmos dados, porém viabilizando novas aplicações.
 
-O principal objetivo foi oferecer uma **estrutura de dados alternativa** à estrutura original, batizada de **Grade Estatística IBGE Compacta**, com as seguintes **vantagens**: <!-- O principal objetivo destes *scripts* é oferecer uma **estrutura de dados alternativa** à estrutura original dos *shapfiles* de grade IBGE, com as seguintes **vantagens**:-->
+O principal objetivo foi oferecer uma **estrutura de dados alternativa** à estrutura original, batizada de **Grade Estatística IBGE Compacta**, com as seguintes **vantagens**: <!-- O principal objetivo destes *scripts* é oferecer uma **estrutura de dados alternativa** à estrutura original dos *shapefiles* de grade IBGE, com as seguintes **vantagens**:-->
 
 1. **indexar a grade diretamente pelos seus geocódigos**: o identificador interno de célula, *gid*, pode ser o próprio nome ou geocódigo binário da célula, tornando as operações de busca e recuperação muito mais simples e rápidas.
 
@@ -47,7 +47,7 @@ O principal objetivo foi oferecer uma **estrutura de dados alternativa** à estr
 
 # CONVENÇÕES DO IBGE
 
-Em janeiro de 2016 o IBGE publicou mais formalmente a sua Grade Estatística em [grade_estatistica/censo_2010](https://geoftp.ibge.gov.br/recortes_para_fins_estatisticos/grade_estatistica/censo_2010/), do site `IBGE.gov.br`, onde podemos acessar livremente o [documento de justificativas](https://geoftp.ibge.gov.br/recortes_para_fins_estatisticos/grade_estatistica/censo_2010/grade_estatistica.pdf) (que infelizmente não pode ser utilizado como referência técnica) e os arquivos da geometria da grade em *shapfile*.
+Em janeiro de 2016 o IBGE publicou mais formalmente a sua Grade Estatística em [grade_estatistica/censo_2010](https://geoftp.ibge.gov.br/recortes_para_fins_estatisticos/grade_estatistica/censo_2010/), do site `IBGE.gov.br`, onde podemos acessar livremente o [documento de justificativas](https://geoftp.ibge.gov.br/recortes_para_fins_estatisticos/grade_estatistica/censo_2010/grade_estatistica.pdf) (que infelizmente não pode ser utilizado como referência técnica) e os arquivos da geometria da grade em *shapefile*.
 
 Se você nunca havia antes ouvido falar, veja o [filminho didáco sobre ela](https://www.youtube.com/watch?v=s5yrDV_c2-4), ou explore o Censo 2010 através da [grade *online*](https://mapasinterativos.ibge.gov.br/grade/default.html) (ilustração abaixo).
 
@@ -55,15 +55,15 @@ Se você nunca havia antes ouvido falar, veja o [filminho didáco sobre ela](htt
 
  A "grade" do IBGE é na verdade um **conjunto hierarquizado de grades** (ou _"grid system"_), aparentemente seguindo as recomendações [INSPIRE *D2.8.I.2*](https://inspire.ec.europa.eu/documents/Data_Specifications/INSPIRE_DataSpecification_GG_v3.1.pdf), "Data Specification on Geographical Grid Systems – Technical Guidelines" de 2014, ou anterior.
 
-Cada quadrante da grade IBGE  de menor escala (na [ilustração do sumário](#grade-estatística-ibge-em-representação-compacta) a grade nível *L0*) é subdividio em quadrados com lado medindo 1/5 ou 1/2 do seu tamanho para formar a grade seguinte, de menor escala e maior resolução.
+Cada quadrante da grade IBGE  de menor escala (na [ilustração do sumário](#grade-estatística-ibge-em-representação-compacta) a grade nível *L0*) é subdividido em quadrados com lado medindo 1/5 ou 1/2 do seu tamanho para formar a grade seguinte, de menor escala e maior resolução.
 A grade seguinte à *L0*, a *L1*, tem quadrados com 500/5&nbsp;km&nbsp;=&nbsp;100&nbsp;km de lado; a seguinte *L2* com 100/2&nbsp;km&nbsp;=&nbsp;50&nbsp;km; *L3* com 50/5&nbsp;km&nbsp;=&nbsp;10&nbsp;km; *L4* com 10/2&nbsp;km&nbsp;=&nbsp;5&nbsp;km; *L6* com 5/5&nbsp;km&nbsp;=&nbsp;**1&nbsp;km**.
 
-Na distribuição da gemetria das grades de 200m e 1km foram acrescentados **dados relevantes do Censo de 2010**.
+Na distribuição da geometria das grades de 200m e 1km foram acrescentados **dados relevantes do Censo de 2010**.
 A seguir a descrição dessa grade mesclada aos dados. Dada a precariedade da documentação, **algumas dúvidas permanecem**, e outras foram deduzidas por reengenharia, também descrita a seguir.
 
 ## Estrutura das tabelas
 
-Todas as tabelas criadas pelos *shapfiles* originais do IBGE (vide ) possuem a estrutura:
+Todas as tabelas criadas pelos *shapefiles* originais do IBGE (vide ) possuem a estrutura:
 
 Column   |            Type             | Comments                 
 ----------|----------------------------|---------
@@ -79,7 +79,7 @@ Column   |            Type             | Comments
 `masc`       | integer                     | população do sexo masculino
 `fem`        | integer                     | população do sexo feminino
 `pop`        | integer                     | população total (conforme Censo 2010) no interior da célula
-`dom_ocu`    | integer                     | domicílios ocupados - particulares permanentes, particulares improvisados e coletivos (todos as categorias da V4001 - Espécie no Censo Demográfico 2010).
+`dom_ocu`    | integer                     | domicílios ocupados (conforme Censo 2010)
 `shape_leng` | numeric                     | (redundante)
 `shape_area` | numeric                     | (redundante)
 `geom`       | geometry(MultiPolygon,4326) | geometria da célula em coordenadas LatLong WGS84 (sem projeção)
@@ -89,7 +89,7 @@ Column   |            Type             | Comments
 Em qualquer quadrante *qq* o resultado de `SELECT DISTINCT substr(id_unico,1,4) id_prefix FROM grade_IDqq` será o conjunto
 {"1KME",&nbsp;"200M"}. Isso significa que todos os demais atributos `nome_*` (e `quadrante`) da estrutura acima, são reduntantes. Só existem esses dois tipos de célula, sendo a menor delas, 200 m, usada para o meio urbano, onde se faz necessária uma cobertura mais densa. No caso das células com `id_prefix` "1KME", de 1 km de lado, teremos `id_unico=nome_1km`.
 
-Quanto ao signiicado do valor de `id_unico`, que segue a *URI Template* `{lado}E{X}N{Y}`, onde `lado` é o tamanho do lado da célula, `X` e `Y` as "coordenadas da célula" tendo como referência o seu canto... Qual canto?
+Quanto ao significado do valor de `id_unico`, ele segue a *URI Template* `{lado}E{X}N{Y}`, onde `lado` é o tamanho do lado da célula, `X` e `Y` as "coordenadas da célula" tendo como referência o seu canto... Qual canto?
 Tomando como referência as coordenadas do centro da geometria (função PostGIS `ST_Centroid`)
 percebemos que o IBGE não adotou uma convenção regular: para células de 1 km basta truncar ou usar o canto inferior direito,
 mas para células de 200 metros é o canto superior direito.
@@ -113,9 +113,10 @@ WHERE substr(x::text,1,length(id_unico_parts[1]))!=id_unico_parts[1]
    OR substr(y::text,1,length(id_unico_parts[2]))!=id_unico_parts[2]
 ORDER BY 1;
 ```
+
 O algoritmo foi validado contra células de 200m (flag `is_200m`) e 1km. conforme `id_unico`.  Para as células de 200m foram validadas as coordenadas "X_centro-100" e "Y_centro+100", para células de 1km as coordenadas "X_centro-500" e "Y_centro-500".
 
-A mesma heuristca pode ser utilizada para a recuperação de dados a partir do identificador IBGE das células de 200 m e de 1 km. A generalização para células maiores (10 km, 50 km etc.) requer uma avaliação mais detalhada, a seguir.
+A mesma heurística pode ser utilizada para a recuperação de dados a partir do identificador IBGE das células de 200 m e de 1 km. A generalização para células maiores (10 km, 50 km etc.) requer uma avaliação mais detalhada, a seguir.
 
 # DECISÕES DE PROJETO
 
@@ -150,8 +151,8 @@ Com rótulo e geometria compactados em um simples inteiro de 64 bits (*bigint* n
 Column         |   Type   | Comments
 ---------------|----------|--------------
 `gid`          | bigint  NOT NULL PRIMARY KEY | "Geometric IDentifier" com informação embutida (4 bits do nível da grade e ~60 bits para o ponto XY de referência da célula)
-`pop`          | integer  NOT NULL| população total dentro da célula.
-`pop_fem_perc` | smallint NOT NULL| percentual da população feminina
+`pop`          | integer  NOT NULL| população total dentro da célula
+`pop_fem_perc` | smallint NOT NULL| percentual da população do sexo feminino
 `dom_ocu`      | smallint NOT NULL| domicílios ocupados
 
 O codificador de coordenadas consegue compactar toda a informação de localização do ponto de referência da célula em um só número inteiro de 64 bits através de operações *bitwise* e aritméticas decimais.
@@ -166,11 +167,11 @@ Como os valores mínimo e máximo das coordenadas XY dos centros de célula de t
 
 Por exemplo, o valor do `gid` da célula de 200M que contém o [Marco Zero de São Paulo](https://pt.wikipedia.org/wiki/Marco_zero_da_cidade_de_S%C3%A3o_Paulo) é *5756000087008006*, portanto *X=5756000*, *Y=08700800* e *L=6*.
 
-Com isso podemos podemos indexar além das células fornecidas pelos shapfiles do IBGE, todas as demais, criando um grande e econômico _cache_ das grades de sumarização.
+Com isso, podemos indexar além das células fornecidas pelos shapefiles do IBGE, todas as demais, criando um grande e econômico _cache_ das grades de sumarização.
 
 ## Visualização dos identificadores
 
-Na biblioteca são oferecidas funções geradoras da geometria da célula, **não há necessidade de se armazenar a geometria da célula**. As funções, principalmente aquela que toma como argumento apenas o *gid*, são simples e rápidas o bastante no PostGIS. No QGIS um grande número de células podem ser vistas simultaneamente através de uma VIEW SQL, sem cache. Por exemplo a grade *L1* inteira:
+Na biblioteca são oferecidas funções geradoras da geometria da célula, **não há necessidade de se armazenar a geometria da célula**. As funções, principalmente aquelas que tomam como argumento apenas o *gid*, são simples e rápidas o bastante no PostGIS. No QGIS, um grande número de células podem ser vistas simultaneamente através de uma VIEW SQL, sem cache. Por exemplo a grade *L1* inteira:
 
 ```sql
 CREATE VIEW test_grade_level1 AS
