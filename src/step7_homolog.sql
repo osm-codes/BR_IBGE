@@ -49,7 +49,7 @@ CREATE or replace FUNCTION grade_all_ids_search_latlon(geouri text) RETURNS TABL
  FROM ( SELECT regexp_match(geoURI,'^geo:([+\-]?\d+\.?\d*),([+\-]?\d+\.?\d*)(?:;.+)?$') ) t1(p)
 $f$ LANGUAGE SQL IMMUTABLE;
 
-DROP TABLE IF EXISTS grid_ibge.homolog_sample_pt;
+DROP TABLE IF EXISTS grid_ibge.homolog_sample_pt CASCADE;
 CREATE TABLE grid_ibge.homolog_sample_pt (
   jurisdiction text,
   name text,
@@ -73,44 +73,27 @@ COPY (
 ) TO '/tmp/ptCtrl2.csv' CSV HEADER;
 */
 
--- Check names:
+-- Check names:   FALHA talvez em não usar ANY em algum lugar, pois 1km vinha rodando bem!
 SELECT geo_uri, id_unico,
   id_unico=grid_ibge.gid_to_name(gid_new) AS is_unico,
-  nome_1km=grid_ibge.xyLany_to_name(xyLany,5)  AS is_name1km,grid_ibge.xyLany_to_name(xyLany,5) as name1km,
+  nome_1km=grid_ibge.xyLany_to_name(xyLany,5)  AS is_name1km,
+  grid_ibge.xyLany_to_name(xyLany,5) as name1km,
   nome_1km
   ,nome_5km=grid_ibge.xyLany_to_name(xyLany,4)  AS is_name5km
   ,nome_10km=grid_ibge.xyLany_to_name(xyLany,3)  AS is_name10km
---  ,nome_50km=grid_ibge.xyLany_to_name(xyLany,2)  AS is_name50km
+  ,nome_50km=grid_ibge.xyLany_to_name(xyLany,2)  AS is_name50km
 --  ,nome_100km=grid_ibge.xyLany_to_name(xyLany,1)  AS is_name100km
 --  ,nome_500km=grid_ibge.xyLany_to_name(xyLany,0)  AS is_name500km
 FROM (
   -- CUIDADO, JOIN funcionando só para pontos distantes mais de 1km ou 200m entre si.
-  SELECT c.gid as gid_new, s.*, grid_ibge.gid_to_xyLref(c.gid) xyLany
+  SELECT c.gid as gid_new, s.*, grid_ibge.gid_to_xyLcenter(c.gid) xyLany -- nâo pode ser xyLref pois borda dá erro no 200.
   FROM grid_ibge.mvw_homolog_sample_pt s INNER JOIN grid_ibge.censo2010_info c
     ON c.gid = grid_ibge.name_to_gid(s.id_unico)
 ) t1;
 
-
--- LXIO Testa conversão direta da geoURI:
-SELECT geo_uri,id_unico,
- CASE WHEN id_unico!=nome_1km THEN grid_ibge.gid_to_name(grid_ibge.geoURI_to_gid(geo_uri,6)) ELSE NULL END AS is_name200m,
- nome_1km = grid_ibge.gid_to_name(grid_ibge.geoURI_to_gid(geo_uri))  AS is_name1km,
- nome_5km = grid_ibge.gid_to_name(grid_ibge.geoURI_to_gid(geo_uri,4))  AS is_name5km,
- nome_10km = grid_ibge.gid_to_name(grid_ibge.geoURI_to_gid(geo_uri,3))  AS is_name10km,
- nome_50km = grid_ibge.gid_to_name(grid_ibge.geoURI_to_gid(geo_uri,2))  AS is_name50km,
- nome_100km = grid_ibge.gid_to_name(grid_ibge.geoURI_to_gid(geo_uri,1)) AS is_name100km,
- nome_500km = grid_ibge.gid_to_name(grid_ibge.geoURI_to_gid(geo_uri,0)) AS is_name500km
-FROM (
- -- CUIDADO, JOIN funcionando só para pontos distantes mais de 1km entre si.
- SELECT c.gid as gid_new, s.*, grid_ibge.gid_to_xyLref(c.gid) xyL_1km
- FROM grid_ibge.mvw_homolog_sample_pt s INNER JOIN grid_ibge.censo2010_info c
-   ON c.gid = grid_ibge.name_to_gid(s.nome_1km)
-) t1;
-
-
 -- Testa conversão direta da geoURI:
-SELECT geo_uri,id_unico,gid_new,
- CASE WHEN id_unico!=nome_1km THEN grid_ibge.gid_to_name(grid_ibge.geoURI_to_gid(geo_uri,6)) ELSE NULL END AS is_name200m,
+SELECT geo_uri,id_unico,
+ id_unico=CASE WHEN id_unico!=nome_1km THEN grid_ibge.gid_to_name(grid_ibge.geoURI_to_gid(geo_uri,6)) ELSE NULL END AS is_name200m,
  nome_1km = grid_ibge.gid_to_name(grid_ibge.geoURI_to_gid(geo_uri))  AS is_name1km,
  nome_5km = grid_ibge.gid_to_name(grid_ibge.geoURI_to_gid(geo_uri,4))  AS is_name5km,
  nome_10km = grid_ibge.gid_to_name(grid_ibge.geoURI_to_gid(geo_uri,3))  AS is_name10km,
@@ -119,12 +102,10 @@ SELECT geo_uri,id_unico,gid_new,
  nome_500km = grid_ibge.gid_to_name(grid_ibge.geoURI_to_gid(geo_uri,0)) AS is_name500km
 FROM (
  -- CUIDADO, JOIN funcionando só para pontos distantes mais de 1km ou 200m entre si.
- SELECT c.gid as gid_new, s.*, grid_ibge.gid_to_xyLref(c.gid) xyL_1km
+ SELECT c.gid as gid_new, s.*, grid_ibge.gid_to_xyLcenter(c.gid) xyL_1km
  FROM grid_ibge.mvw_homolog_sample_pt s INNER JOIN grid_ibge.censo2010_info c
    ON c.gid = grid_ibge.name_to_gid(s.id_unico)
 ) t1;
-
-
 
 -- -- -- -- -- -- -- -- -- -- -- -- --
 -- -- MAIS TESTES POR CONVERSÃO DE NOME:
@@ -142,6 +123,9 @@ FROM (
 
 -- -- -- -- -- -- -- -- -- -- -- -- --
 -- -- MAIS TESTES POR CONVERSÃO DE GEOMETRIA:
+-- IMPORTANTE!   Com a geometria crioamos tira-teima.
+
+
 /*
   SELECT SUM(is_name1km::int + is_name5km::int + is_name100km::int) as n_cmps, count(*) n_samples
   FROM (
@@ -154,6 +138,16 @@ FROM (
 */
 
 -- TESTAR GEOMETRIAS: ...
+
+SELECT geo_uri,id_unico,gid_new,
+  s.geom
+FROM (
+ -- CUIDADO, JOIN funcionando só para pontos distantes mais de 1km ou 200m entre si.
+ SELECT c.gid as gid_new, s.*, grid_ibge.gid_to_xyLref(c.gid) xyL_1km
+ FROM grid_ibge.mvw_homolog_sample_pt s INNER JOIN grid_ibge.censo2010_info c
+   ON c.gid = grid_ibge.name_to_gid(s.id_unico)
+) t1;
+
 
 ------------------------------------------------------------------------------------
 -- BUSCAS E SEU PREPARO, Brute forte search:

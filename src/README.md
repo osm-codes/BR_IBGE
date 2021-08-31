@@ -127,9 +127,9 @@ Transformações padronizadas:
 
 * **(*lat,lon,uncert*)→(*x,y,L*)** &nbsp; Implementada por `ST_Transform(geom,952019)` e `uncertain_to_size(uncert)`.
 
-* **(*x,y,L*)→(*i,j,s*)** &nbsp; A rigor não transforma, mas "collapsa" todos os pontos *XY* da célula em seu *IJ*. Implementada por `xyL_collapseTo_ijS(x,y,L)`.
+* **(*x,y,L*)→(*i,j,s*)** &nbsp; A rigor não transforma, mas "colapsa" todos os pontos *XY* da célula em seu *IJ*. Implementada por `xyL_collapseTo_ijS(x,y,L)`.
 
-* **(*i,j,s*)→(*x,y,L*)** &nbsp; As coordenadas *XY* quantizadas podem ser obtidas de volta tomando-se um ponto interior de referência na célula. Implementada por `ijS_to_xySref(i,j,s)`, onde *s* (*size*) é a largura da célula-alvo.
+* **(*i,j,s*)→(*x,y,L*)** &nbsp; As coordenadas *XY* quantizadas podem ser obtidas de volta tomando-se um ponto interior de referência na célula. Implementada por `ijS_to_xySref(i,j,s)`, onde *s* (*size*) é a largura da célula-alvo.  Por ter *S* livre, fundamenta `xySany_to_gid()`. Larguras arbitrárias podem ser convertidas por `uncertain_to_size(uncert)`.
 
 ![](../assets/BR_IBGE-coords1.png)
 

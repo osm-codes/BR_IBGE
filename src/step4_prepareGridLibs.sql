@@ -76,7 +76,7 @@ COMMENT ON FUNCTION grid_ibge.name_to_gid
 ;
 
 CREATE FUNCTION grid_ibge.gid_to_xyLref(gid bigint) RETURNS int[] AS $f$
-  -- X,Y,Level. Falta testar opções de otimização, como floor(gid/100000000000::bigint) as x
+  -- X,Y,Level. curiosidade: seria mais rápido em X calcular gid/100000000000::bigint ?
   SELECT array[ substr(p,1,7)::int, substr(p,8,8)::int, (gid & 7::bigint)::int ]
   FROM ( SELECT gid::text p ) t
 $f$ LANGUAGE SQL IMMUTABLE;
@@ -211,8 +211,12 @@ $wrap$ LANGUAGE SQL IMMUTABLE;
 
 -- xyLref é a referência da célula, deixa de ser XY qualquer e passa a ser quantizado.
 
-CREATE FUNCTION grid_ibge.ijS_to_xySref(i int, j int, s int) RETURNS int[] AS $f$
-  SELECT array[ 2800000 + i*s, 7350000 + j*s, s ]
+CREATE or replace FUNCTION grid_ibge.ijS_to_xySref(i int, j int, s int) RETURNS int[] AS $f$
+  -- !para conversão Any usar ijS_to_xyScenter.
+  SELECT CASE WHEN s=200 THEN array[xys[1], xys[2]+s, s] ELSE xys END
+  FROM (
+    SELECT array[ 2800000 + i*s, 7350000 + j*s, s ]
+  ) t(xys)
 $f$ LANGUAGE SQL IMMUTABLE;
 CREATE FUNCTION grid_ibge.ijS_to_xySref(xys int[]) RETURNS int[] AS $wrap$
   SELECT grid_ibge.ijS_to_xySref(xys[1],xys[2],xys[3])
@@ -263,10 +267,15 @@ CREATE FUNCTION grid_ibge.xy_to_quadrante_valid(x int, y int) RETURNS int AS $f$
   WHERE ij = ANY( grid_ibge.quadrantes() )
 $f$ LANGUAGE SQL IMMUTABLE;
 
-CREATE FUNCTION grid_ibge.gid_to_quadrante(gid bigint) RETURNS int AS $wrap$
+CREATE FUNCTION grid_ibge.gid_to_quadrante(gid bigint) RETURNS int AS $f$
   SELECT grid_ibge.xy_to_quadrante(xyL[1],xyL[2])
-  FROM ( SELECT grid_ibge.gid_to_xyLref(gid) ) t(xyL)  -- ou gid_to_xyLcenter()!? bordas indiferentes?
-$wrap$ LANGUAGE SQL IMMUTABLE;
+  FROM ( SELECT grid_ibge.gid_to_xyLcenter(gid) ) t(xyL)
+$f$ LANGUAGE SQL IMMUTABLE;
+
+CREATE FUNCTION grid_ibge.gid_to_gid(gid bigint, L int) RETURNS bigint AS $f$
+  SELECT CASE WHEN gid & 7 = L THEN gid ELSE  grid_ibge.xyLany_to_gid(xyL[1],xyL[2]) END
+  FROM ( SELECT grid_ibge.gid_to_xyLcenter(gid) ) t(xyL)
+$f$ LANGUAGE SQL IMMUTABLE;
 
 ------
 ---====== FIND CELL:
