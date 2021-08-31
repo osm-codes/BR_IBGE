@@ -85,9 +85,12 @@ grid_toGeoJSON:
 	psql $(pg_uri)/$(pg_db) -c "SELECT * FROM vw_write_grid_ibge500km"
 	psql $(pg_uri)/$(pg_db) -c "SELECT * FROM vw_write_grid_ibge100km"
 
-grid_homolog:
+grid_homolog: ../data/step7_homolog.txt
+	@echo "Reproduzindo os testes de homologação contra IBGE original (pode demorar)"
 	cp ../data/ptCtrl.csv /tmp
-	psql $(pg_uri)/$(pg_db) < step7_homolog.sql
+	psql $(pg_uri)/$(pg_db) < step7_homolog.sql > /tmp/br_ibge_step7_homolog.txt
+	@echo " ... Conferindo por diff se bate com a última versão postada:"
+	diff ../data/step7_homolog.txt /tmp/br_ibge_step7_homolog.txt
 
 ## Concrete cleaner targets:
 

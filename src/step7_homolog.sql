@@ -121,33 +121,41 @@ FROM (
   ) t1
 ) t2;
 
+
 -- -- -- -- -- -- -- -- -- -- -- -- --
--- -- MAIS TESTES POR CONVERSÃO DE GEOMETRIA:
--- IMPORTANTE!   Com a geometria crioamos tira-teima.
+-- -- GEOMETRIA: mais testes, agora homologando geometria das células
+
+SELECT BOOL_AND( round(st_area(st_intersection(albers_geom,new_geom)))=round(ST_area(geom,true))  ) as interecs_areas1,
+       BOOL_AND(st_contains(geom,pt_geom)) contains_pt_geom1
+FROM (
+  SELECT c.gid, s.geom, s.pt_geom, grid_ibge.draw_cell(c.gid) as new_geom, ST_Transform(s.geom,952019) as albers_geom
+  FROM grid_ibge.mvw_homolog_sample_pt s INNER JOIN grid_ibge.censo2010_info c
+    ON c.gid = grid_ibge.name_to_gid(s.id_unico)
+) t1;
+
+SELECT BOOL_AND( round(st_area(st_intersection(albers_geom,new_geom)))=round(ST_area(geom,true))  ) as interecs_areas2
+FROM (
+  SELECT *, ST_Transform(geom,952019) as albers_geom,
+        grid_ibge.draw_cell( grid_ibge.name_to_gid(id_unico) ) as new_geom
+  FROM grade_all_ids_sample
+) t;
+
+-- contabiliza a chance de "falha" nas bordas: ~25% = ~1/4.
+SELECT -- SUM(n) n_tot,
+       round(100.0*SUM(n) FILTER (WHERE contains_pt_geom ) / SUM(n)) AS contains_pt_geom_perc,
+       round(100.0*SUM(n) FILTER (WHERE contains_center_geom ) / SUM(n)) AS contains_center_geom_perc
+FROM (
+  SELECT ST_Contains(new_geom,pt_geom) AS contains_pt_geom,
+         ST_Contains(new_geom,ptcenter) AS contains_center_geom, count(*) n
+  FROM (
+    SELECT id_unico, g.geom as pt_geom, ST_Transform( st_centroid(t.geom), 952019) as ptCenter,
+           grid_ibge.draw_cell( grid_ibge.name_to_gid(id_unico) ) as new_geom
+    FROM grade_all_ids_sample t, LATERAL ST_DumpPoints( ST_Transform( st_simplify(t.geom,0.00001),952019) ) g
+  ) t1 GROUP BY 1, 2 ORDER BY 1,2  -- com ou sem ST_simplify o efeito é o mesmo.
+) t2;
 
 
 /*
-  SELECT SUM(is_name1km::int + is_name5km::int + is_name100km::int) as n_cmps, count(*) n_samples
-  FROM (
-    st_centroid ( )  ver ptgeom
-    SELECT nome_1km = grid_ibge.gid_to_name(grid_ibge.name_to_gid(nome_1km)) AS is_name1km,
-           nome_5km = grid_ibge.gid_to_name(grid_ibge.name_to_gid(nome_5km)) AS is_name5km,
-           nome_100km = grid_ibge.gid_to_name(grid_ibge.name_to_gid(nome_100km)) AS is_name100km
-    FROM grade_all_ids_sample
-  ) t1
-*/
-
--- TESTAR GEOMETRIAS: ...
-
-SELECT geo_uri,id_unico,gid_new,
-  s.geom
-FROM (
- -- CUIDADO, JOIN funcionando só para pontos distantes mais de 1km ou 200m entre si.
- SELECT c.gid as gid_new, s.*, grid_ibge.gid_to_xyLref(c.gid) xyL_1km
- FROM grid_ibge.mvw_homolog_sample_pt s INNER JOIN grid_ibge.censo2010_info c
-   ON c.gid = grid_ibge.name_to_gid(s.id_unico)
-) t1;
-
 
 ------------------------------------------------------------------------------------
 -- BUSCAS E SEU PREPARO, Brute forte search:
@@ -256,7 +264,7 @@ CREATE FUNCTION grid_ibge.bfsearch_cell_bylatlon(lat float, lon float, p_level i
   SELECT grid_ibge.bfsearch_cell_bylatlon(lat::real,lon::real,p_level)
 $wrap$ LANGUAGE SQL IMMUTABLE;
 -- select grid_ibge.bfsearch_cell_bylatlon(-23.550278,-46.633889,6);
-
+*/
 
 /*
 -- REFRESHES DO "BRUTE FORCE SEARCH":
