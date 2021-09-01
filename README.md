@@ -134,13 +134,13 @@ Mesmo sendo uma reprodução fiel e completa da grade original, alinhada aos [ob
 
 # ALGORITMOS IMPLANTADOS
 
-Os scripts possuem duas finalidades:
+Foram desenvolvidos desde simples "instaladores" a algorimos complexos, com as seguintes finalidades:
 
 1. Popular uma base de dados PostgreSQL **com as tabelas dos _shapefiles_ originais** da distribuição IBGE.
 
 2. Criar e popular com os dados originais uma nova estrutura, **mais compacta** e eficiente para a **indexação de outros dados** e a **resolução dos identificadores de célula**.
 
-Na [seção INSTALAÇÃO](#instalação) abaixo, descreve-se como cada uma dessas estruturas de dados pode ser intaladas com um simples comando com o número da alternativa (1 ou 2).
+Na [seção INSTALAÇÃO](#instalação) abaixo, descreve-se como cada uma dessas estruturas de dados pode ser intaladas com um simples comando `make` e o número da alternativa (1 ou 2).
 
 A seguir a descrição dos algoritmos que geram a conversão da grade original em compacta, e vice-versa, que transformam a compacta em original, e outros recursos.
 
@@ -155,11 +155,9 @@ Column         |   Type   | Comments
 `pop_fem_perc` | smallint NOT NULL| percentual da população do sexo feminino
 `dom_ocu`      | smallint NOT NULL| domicílios ocupados
 
-O codificador de coordenadas consegue compactar toda a informação de localização do ponto de referência da célula em um só número inteiro de 64 bits através de operações *bitwise* e aritméticas decimais.
+O codificador de coordenadas consegue compactar toda a informação de localização do ponto de referência da célula em um só número inteiro de 64 bits.
 
-...
-
-Como os valores mínimo e máximo das coordenadas XY dos centros de célula de todo o conjunto são, respectivamente, `(2809500,7599500)` e `(7620500,11920500)`, duas ordens de grandeza abaixo de `2^30-1 = 1073741823`. Cabem folgadamente em 30 bits e ainda sobram 3 bits para codificar o nível hierárquico da grade na qual se encontra o ponto. A representação final para os 64 bits do *gid*  proposto é a seguinte, em três partes:
+Como os valores mínimo e máximo das coordenadas XY dos centros de célula de todo o conjunto são, respectivamente, `(2809500,7599500)` e `(7620500,11920500)`, duas ordens de grandeza abaixo de `2^30-1 = 1073741823`. Cabem folgadamente em 30 bits e ainda sobram 3 bits para codificar o nível hierárquico da grade na qual se encontra o ponto. A representação final para o *gid*  proposto é um número inteiro positivo de 16 dígitos (ex. 4881000078490005), estruturado em três partes:
 
 * **7 primeiros dígitos**, posições 1 a 7: valor no eixo *X* da projeção Albers.
 * **8 dígitos seguintes**, posições 8 a 16: valor no eixo *Y* da projeção Albers.
@@ -190,15 +188,17 @@ As grades *L0* e *L1* podem também ser visualizadas no repositório git, respec
 
 ## Resolução dos identificadores de célula
 
-...
+Cada célula da grade tem seu nome, ou seja, um identificador único expresso conforme convenções do IBGE.
+O nome pode ser "resolvido" em geometria da célula. Essa resolução é realizada por funções de biblioteca. Exemplos:
+
+* resolução do nome em *gid*: função `name_to_gid()`.
+* resolução do nome  em coordenadas, ou em geometria da célula: funções `name_to_parts()`, `name_to_xyLcenter()`, `draw_cell()` e outras.
 
 ## Resolução de ponto em célula
 
 A solução proposta na presente versão indexada por XY permite usar a representação interna invez da busca geométrica.
-Por exemplo o ponto XY=(4580490.89,8849499.5) pode primeiramente ser arredondado para inteiros multiplicados por 10, e
-em seguida a busca se realizaria através de indexão otimizada em cada coordenada, nas tabelas `mvw_censo2010_info_Xsearch` e `mvw_censo2010_info_Ysearch`.
 
-...
+Por exemplo o ponto XY=(4580490.89,8849499.5) pode primeiramente ser arredondado para inteiros e depois aproximado para a célula mais próxima, conforme algoritmo tradicional de "snap to grid". A função `geoURI_to_gid()` implementa a resolução do ponto dado por [geoURI](https://en.wikipedia.org/wiki/Geo_URI_scheme).
 
 ## Adaptações para outros países
 
@@ -219,9 +219,16 @@ As funções de resolução para uso na API são descritas no README do `/src`. 
 * Endpoint `br_ibge.osm.org/geo:{lat},{long};u={uncertainty}`: usa a incerteza para deduzir o nível mais próximo e efeuar `search_cell(p_x,p_y,p_level)`. Por exemplo erro de 5km a 10km retorna células de 10 km.
 * ...  
 
-Exemplos de busca a serem implementadas no futuro:
+Ilustrando através de ponos de controle:  
 
-... tabela de exemplos com pontos conhecidos (Wikidata) do Brasil.
+| municipality            | name                                    | geo_uri                   | wikidata_id                            | `osm.codes/geoURI`      |
+|-------------------------|-----------------------------------------|---------------------------|-----------------------------------------|------------------|
+| São Paulo               | Marco Zero de São Paulo                 | geo:-23.550385,-46.633956 | [10325364](https://www.wikidata.org/wiki/Q10325364) | [link API](http://osm.codes/geo:-23.550385,-46.633956) |
+| Amazonas                | Teatro Amazonas                         | geo:-3.130278,-60.023333  | [1434444](https://www.wikidata.org/wiki/Q1434444)  |  [link API](http://osm.codes/geo:-3.130278,-60.023333) |
+| Brasília                | Palácio Nereu Ramos                     | geo:-15.799717,-47.864131 | [4155889](https://www.wikidata.org/wiki/Q4155889)  |  [link API](http://osm.codes/geo:-15.799717,-47.864131) |
+| ...                | ... | ...| ....| ... | ... |
+
+Demais exemplos no *dataset* [`data/ptCtrl.csv`](data/ptCtrl.csv).
 
 ----------------
 
