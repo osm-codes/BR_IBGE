@@ -272,11 +272,6 @@ CREATE FUNCTION grid_ibge.gid_to_quadrante(gid bigint) RETURNS int AS $f$
   FROM ( SELECT grid_ibge.gid_to_xyLcenter(gid) ) t(xyL)
 $f$ LANGUAGE SQL IMMUTABLE;
 
-CREATE FUNCTION grid_ibge.gid_to_gid(gid bigint, L int) RETURNS bigint AS $f$
-  SELECT CASE WHEN gid & 7 = L THEN gid ELSE  grid_ibge.xyLany_to_gid(xyL[1],xyL[2]) END
-  FROM ( SELECT grid_ibge.gid_to_xyLcenter(gid) ) t(xyL)
-$f$ LANGUAGE SQL IMMUTABLE;
-
 ------
 ---====== FIND CELL:
 
@@ -288,6 +283,11 @@ $f$ LANGUAGE SQL IMMUTABLE;
 CREATE FUNCTION grid_ibge.xySany_to_gid(x int, y int, S int) RETURNS bigint AS $f$
   SELECT grid_ibge.xyLref_to_gid( xy[1], xy[2], grid_ibge.size_to_level(S) )
   FROM ( SELECT grid_ibge.ijS_to_xySref(grid_ibge.xyS_collapseTo_ijS(x,y,S)) ) t(xy)
+$f$ LANGUAGE SQL IMMUTABLE;
+
+CREATE FUNCTION grid_ibge.gid_to_gid(gid bigint, L int) RETURNS bigint AS $f$
+  SELECT CASE WHEN gid & 7 = L THEN gid ELSE  grid_ibge.xyLany_to_gid(xyL[1],xyL[2],L) END
+  FROM ( SELECT grid_ibge.gid_to_xyLcenter(gid) ) t(xyL)
 $f$ LANGUAGE SQL IMMUTABLE;
 
 CREATE FUNCTION grid_ibge.xyLany_to_name(x int, y int, L int) RETURNS text AS $f$
@@ -307,7 +307,7 @@ CREATE FUNCTION grid_ibge.ptgeomAny_to_gid( geom geometry(Point,4326),  L int ) 
 $f$ LANGUAGE SQL IMMUTABLE;
 
 CREATE FUNCTION grid_ibge.latlonAny_to_gid(lat real, lon real, L int) RETURNS bigint AS $wrap$
-  SELECT grid_ibge.pointAny_to_gid( ST_SetSRID( ST_MakePoint(lon,lat),4326)  ,  L )
+  SELECT grid_ibge.ptgeomAny_to_gid( ST_SetSRID( ST_MakePoint(lon,lat),4326)  ,  L )
 $wrap$ LANGUAGE SQL IMMUTABLE;
 CREATE FUNCTION grid_ibge.latlonAny_to_gid(latlon real[], L int DEFAULT NULL) RETURNS bigint AS $wrap$
   SELECT grid_ibge.latlonAny_to_gid( latlon[1], latlon[2], COALESCE(L,5) )
@@ -422,6 +422,7 @@ CREATE VIEW grid_ibge.vw_original_ibge_rebuild AS
 CREATE SCHEMA IF NOT EXISTS API;
 
 -- ?? search_cell, refazer pois agora é latLonL_to_xyLref
+/*
 CREATE FUNCTION api.resolver_geo_uri(geouri text) RETURNS JSONb AS $f$
  SELECT jsonb_build_object(
    'BR_IBGE_cell_L0_gid', cell_L0_gid,
@@ -442,3 +443,5 @@ CREATE FUNCTION api.resolver_geo_uri(geouri text) RETURNS JSONb AS $f$
   FROM ( SELECT regexp_match(geoURI,'^geo:([+\-]?\d+\.?\d*),([+\-]?\d+\.?\d*)(?:;.+)?$') ) t1(p)
   ) t2
 $f$ LANGUAGE SQL IMMUTABLE;
+
+*/

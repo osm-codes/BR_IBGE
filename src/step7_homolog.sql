@@ -35,6 +35,21 @@ $f$ LANGUAGE PLpgSQL;
 COMMENT ON FUNCTION grid_ibge.homolog_prepare
   IS 'Prepara VIEWS para homologar grade compacta contra dados originais da Grade Estatística IBGE.';
 
+CREATE or replace FUNCTION grid_ibge.drop_original() RETURNS text AS $f$
+DECLARE
+ tabname text;
+ q       text  :='';
+BEGIN
+FOREACH tabname IN ARRAY grid_ibge.quadrantes_text('grade_id')
+LOOP
+  q := q || format(E'\nDROP TABLE IF EXISTS %1$s CASCADE;', tabname);
+END LOOP;
+EXECUTE q;
+RETURN 'tabelas IBGE originais removidas';
+END;
+$f$ LANGUAGE PLpgSQL;
+
+
 SELECT grid_ibge.homolog_prepare();
 
 CREATE or replace FUNCTION grade_all_ids_search_latlon(lat real, lon real) RETURNS TABLE (LIKE grade_id04) AS $f$
@@ -154,6 +169,8 @@ FROM (
   ) t1 GROUP BY 1, 2 ORDER BY 1,2  -- com ou sem ST_simplify o efeito é o mesmo.
 ) t2;
 
+
+-- SELECT grid_ibge.drop_original();
 
 /*
 
