@@ -9,7 +9,7 @@ info:
 	@echo "------------"
 	@echo "Builds the Compact IBGE's Grade Estatística do Censo de 2010"
 	@echo "------------"
-	@echo "Builds datatbase '$(pg_db)' with psql, change with pg_db=DatabaseName"
+	@echo "Builds database '$(pg_db)' with psql, change with pg_db=DatabaseName"
 	@echo "Possible targets for this git package:"
 	@echo " * all1: build all by alternative 1, downloading original grid"
 	@echo " * all2: build all by alternative 2, from zip file"
