@@ -4,7 +4,7 @@
 
     * Controle sintático
     * Sistemas de coordenadas padronizados
-
+* [ARQUIVOS STEP](arquivos-step)
 * [BIBLIOTECA](#biblioteca)
     * Uso geral
     * Interação PostgREST
@@ -133,64 +133,127 @@ Transformações padronizadas:
 
 ![](../assets/BR_IBGE-coords1.png)
 
-## BIBLIOTECA
+## ARQUIVOS STEP
+
+Os arquivos contendo código-fonte da implementação passo-a-passo (*steps*) são utilizados pelo _makefile_, a seguir um breve resumo de cada.
+
+### Step 1 - Downloads
+
+[`step1_download_IBGE.sh`](step1_download_IBGE.sh). Baixa os arquivos originais do IBGE por `wget`, gerado pela consulta:
+```sql
+SELECT p||'.zip'
+FROM unnest(grid_ibge.quadrantes_text(
+   'wget -c http://geoftp.ibge.gov.br/recortes_para_fins_estatisticos/grade_estatistica/censo_2010/grade_id'
+ )) t(p);
+```
+### Step 2 - PubLib
+
+Conjunto `step2*_pubLib-*.sql`. Arquivos de instalação da biblioteca do *schema* `public`, (*public library* - PubLib).  São comuns a outros projetos e podem receber atualizações para manter a compatibilidade global do ecossistema. O sufixo do nome de arquivo (`aggregated`, `json`, `string`, etc.) são as categorias definidas pelo guia PostgreSQL,  exceto pela categoria `overload` que reunem funções de conversão de tipo ou de sobrecarga *build-in*, que podem gerar problemas maiores de compatibilidade.
+
+### Step 3 - Build IBGE
+
+[`step3_build_IBGE.sh`](step3_build_IBGE.sh). Monta em `/tmp/sandbox/ibge_grade` os *shapfiles* originais do IBGE, baixados pelo step1, e rodando `shp2pgsql`, comando que vem junto com o pacote `PostGIS`.
+
+### Step ...
+
+...
+
+### Step 6 - Asserts
+
+[`step6_asserts.sql`](step6_asserts.sql). O PostgreSQL oferece o comando PL/pgSQL `ASSERT`  que ajuda a documentar testes, com base na tradição das [*asserções*](https://en.wikipedia.org/wiki/Assertion_(software_development)) lógicas. Por exemplo:
+
+```sql
+do $$
+    begin  -- Testando o operador "="
+        ASSERT 1 = 2, 'Oops, o valor 1 não é 2...';
+        ASSERT 1 = 1, 'Erro mesmo, o valor 1 era para ser 1!';
+    end;
+$$ LANGUAGE plpgsql;    -- A execução resulta só no "Oops".
+```
+Foram criados conjuntos de 1 ou mais  [Testes de Regressão](https://pt.stackoverflow.com/a/13530/4186) para cada função relevante, que serão então utilizados sempre que alguma modificação no _git_ for feita, garantindo que _bugs_ não sejam "injetados" pelas modificações.
+
+### Step 7 - Homolog
+
+[`step7_homolog.sql`](step7_homolog.sql). A homologação das funções implementadas pelo step4 se dá pelo *assert*  com os dados originais dos *shapfiles* do IBGE, montantados pelo step3. Demora um pouco para rodar, e tem como finalidade única deixar registrados os critérios de homologação empregados, para quem desejar auditar.
+
+### Outros arquivos
+
+O `assert_csv_samples.sh` é um guia didático, através de exemplos, para a manipulação dos dados brutos de `grid_ibge_censo2010_info.csv` em terminal Linux.
+
+## BIBLIOTECA PRINCIPAL
 Principais funções em [`step4_prepareGridLibs.sql`](step4_prepareGridLibs.sql), para a manipulação da grade compacta e conversão entre as representações original e compacta, todas do SQL SCHEMA `grid_ibge`:
 
-... REVISANDO...
 <!-- new lib
-Usar tabela com titulo
-FUNCTION api.resolver_geo_uri(geouri text) → JSONb AS $f$
-
-gid_to_level(gid bigint) → int
-gid_to_name(gid bigint) → text
-gid_to_quadrante(gid bigint) → int: wrap
-
-gid_to_xyLref(gid bigint) → int[]
-
-ijS_to_xySref(i int, j int, s int) → int[] AS $f$
-ijS_to_xySref(xys int[]) → int[]: wrap
-
-level_to_prefix(level int) → text AS $f$
-level_to_size(level int)  → int AS $f$
-name_to_gid(name text) → bigint AS $f$
-name_to_parts_normalized(name text) → int[] AS $f$
-name_to_parts(name text) → text[] AS $f$
-
-prefix_to_level(prefix text) → int AS $f$
-quadrantes_text(prefix text DEFAULT 'ID_') → text[]: wrap
-quadrantes() → int[] AS $f$
-uncertain_to_size(u int) → int AS $f$
-
-xy_to_quadrante(x int, y int) → int AS $f$
-xy_to_quadrante(xyd int[]) → int: wrap
-xy_to_quadrante_text(x int, y int, prefix text DEFAULT 'ID_') → text: wrap
-xy_to_quadrante_text(xyd int[], prefix text DEFAULT 'ID_') → text: wrap
-xy_to_quadrante_valid(x int, y int) → int: wrap
-
-xyS_collapseTo_ijS(x int, y int, s int) → int[] AS $f$
-xyS_collapseTo_ijS(xyS int[]) → int[]: wrap
-xyL_collapseTo_ijS(x int, y int, L int) → int[] AS $f$
-xyL_collapseTo_ijS(xyL int[]) → int[]: wrap
-
-xyL_to_xySref(x int, y int, L int DEFAULT 0) → int[] AS $f$
-xyL_to_xySref(xyL int[]) → int[]: wrap
-xyLref_to_gid(x int, y int, nivel int) → bigint AS $f$
-xyLref_to_gid(xyL int[]) → bigint: wrap
-
-gid_to_xyLcenter(gid bigint) → int[] AS $f$
-name_to_xyLcenter(name text) → int[] AS $f$
-
-xyL_to_xyLcenter(x int, y int, L int DEFAULT 0) → int[] AS $f$
-xylcenter_to_gid(x int, y int, nivel int) → bigint AS $f$
-xylcenter_to_xyLref(x int, y int, nivel int) → int[] AS $f$
-draw_cell_center( -- by GID
-draw_cell_center( -- by name
-
-draw_cell(  -- ok funciona.
-draw_cell( -- by GID. BUG para 1km
-draw_cell( -- by name
+grep FUNCTION step4_prepareGridLibs.sql | sed --expression 's/or replace //i' | sed --expression 's/ RETURNS / → /' | sort
 -->
-<!--
+Inferência de nível hierárquico:
+* `gid_to_level(gid bigint) → int`:
+* `level_to_prefix(level int) → text`:
+* `level_to_size(level int)  → int`:
+* `prefix_to_level(prefix text) → int`:
+* `size_to_level(size int) → int`:
+* `uncertain_to_size(u int) → int`:
+
+Inferência de quadrante:
+* `quadrantes() → int[]`:
+* `quadrantes_text(prefix text DEFAULT 'ID_') → text[]`: *wrap* para
+* `xy_to_quadrante(x int, y int) → int`:
+* `xy_to_quadrante(xyd int[]) → int`: *wrap* para
+* `xy_to_quadrante_text(x int, y int, prefix text DEFAULT 'ID_') → text`: *wrap* para
+* `xy_to_quadrante_text(xyd int[], prefix text DEFAULT 'ID_') → text`: *wrap* para
+* `xy_to_quadrante_valid(x int, y int) → int`:
+* `gid_to_quadrante(gid bigint) → int`:
+
+Transformações padronizadas:
+* `gid_to_gid(gid bigint, L int) → bigint`: se *L* menor, retorna a célula-mãe; se *L* maior, retorna a célula contida mais próxima do centro.
+* `gid_to_xyLcenter(gid bigint) → int[]`:
+* `gid_to_xyLref(gid bigint) → int[]`:
+* `ijS_to_xySref(i int, j int, s int) → int[]`:
+* `ijS_to_xySref(xys int[]) → int[]`: *wrap* para ijS_to_xySref().
+* `ptgeomAny_to_gid( geom geometry(Point,4326),  L int ) → bigint`:
+* `xyLcenter_to_gid(x int, y int, nivel int) → bigint`:
+* `xyLcenter_to_xyLref(x int, y int, nivel int) → int[]`:
+* `xyL_to_xyLcenter(x int, y int, L int DEFAULT 0) → int[]`:
+* `xyL_to_xySref(x int, y int, L int DEFAULT 0) → int[]`: *wrap* para xyL_to_xySref().
+* `xyL_to_xySref(xyL int[]) → int[]`:
+
+Conversão de nome:
+* `gid_to_name(gid bigint) → text`:
+* `name_to_gid(name text) → bigint`:
+* `name_to_parts(name text) → text[]`:
+* `name_to_parts_normalized(name text) → int[]`:
+* `name_to_xyLcenter(name text) → int[]`:
+
+"Snap to grid":  
+* `xyL_collapseTo_ijS(x int, y int, L int) → int[]`:
+* `xyL_collapseTo_ijS(xyL int[]) → int[]`: *wrap* para `xyL_collapseTo_ijS(int,int,int)`.
+* `xyS_collapseTo_ijS(x int, y int, s int) → int[]`:
+* `xyS_collapseTo_ijS(xyS int[]) → int[]`: *wrap* para `xyS_collapseTo_ijS(int,int,int)`
+
+Transformações compostas com "Snap to grid":
+* `xyLany_to_gid(x int, y int, L int) → bigint`:
+* `xyLany_to_name(x int, y int, L int) → text`:
+* `xyLany_to_name(xyL int[], L int default NULL) → text`: *wrap* para
+* `xyLref_to_gid(x int, y int, nivel int) → bigint`:
+* `xyLref_to_gid(xyL int[]) → bigint`: *wrap* para
+* `xySany_to_gid(x int, y int, S int) → bigint`:
+
+Apoio à manipulação LatLong e GeoURI:
+* `latlonAny_to_gid(lat real, lon real, L int) → bigint`: *wrap* para xyLany_to_gid().
+* `latlonAny_to_gid(latlon real[], L int DEFAULT NULL) → bigint`: *wrap* para latlonAny_to_gid().
+* `geoURI_to_gid(geoURI text, L int DEFAULT 5) → bigint`:
+
+Geometria da célula em Albers:
+* `draw_cell(gid)`: desenha a célula identificada por seu *gid*.
+* `draw_cell(x_ref,y_ref,L)`: desenho arbitrário de uma célula de nível *L* a partir do suposto ponto de referência.
+* `draw_cell(name)`: desenha a célula identificada por seu nome IBGE.
+* `draw_cell_center(gid)`: desenha ponto do centro?
+* `draw_cell_center(name)`: ? ... ver `name_to_xyLcenter()`
+
+API:
+* `api.resolver_geo_uri(geouri text) → JSONb`: devolve diversas informações sobre o ponto e a célula onde está contido.
+* `api.resolver_gecode(code text, type text, subtype text) → JSONb`: mesmo que `resolver_geo_uri()`, porém usando um geocódigo como argumento.
+<!-- old descriptions:
 * `coordinate_encode(x real, y real, level int)`: compacta as coordenadas XY Albers de centro de célula em *gid*, com respectivo nível da célula.
 
 * `coordinate_encode10(x10 int, y10 int, level int)`: faz o trabalho para `coordinate_encode()`, já que internamente a representação é por inteiros XY10.
@@ -207,34 +270,18 @@ draw_cell( -- by name
 
 * `draw_cell(gid bigint)`: desenha célula identificada por *gid*.
 -->
-<!-- OLD:
-* grid_ibge.coordinate_encode10:
-* grid_ibge.coordinate_encode(x real, y real, level int)
-* grid_ibge.coordinate_encode(x real, y real, is_200m boolean)
-* grid_ibge.coordinate_encode(x real, y real)
-* grid_ibge.coordinate_encode10(x10 int, y10 int, level int)
-* grid_ibge.coordinate_decode10(gid bigint)
-* grid_ibge.level_decode(gid bigint) → int AS $f$
-* grid_ibge.level_to_size(level int)  
-* grid_ibge.search_xy10(p_x10 int, p_y10 int, p_level smallint)
-* grid_ibge.search_cell(p_x real, p_y real, p_level smallint)
-* grid_ibge.xy10_to_quadrante()
-* grid_ibge.xy_to_quadrante()
-* grid_ibge.gid_to_quadrante(p_gid bigint)
-* grid_ibge.draw_cell(real,real,int,boolean,int)
-* grid_ibge.draw_cell(int,int,int,boolean,int)
-* grid_ibge.draw_cell(int[],int,boolean,int)
-* grid_ibge.draw_cell(bigint,boolean,int)
--->
 
-### API
-Funções de resolução para uso na API.
+### API em OSM.codes
 
-* ...
-* Endpoint `br_ibge.osm.org/{cell_id}`:  retorna célula solicitada na sintaxe original,  por exemplo `5KME5300N9630`.
-* Endpoint `br_ibge.osm.org/geo:{lat},{long}`:  efeua `search_cell(p_x,p_y,5)`, ou seja, retorna célula de 1km.
-* Endpoint `br_ibge.osm.org/geo:{lat},{long};u={uncertainty}`: usa a incerteza para deduzir o nível mais próximo e efeuar `search_cell(p_x,p_y,p_level)`. Por exemplo erro de 5km a 10km retorna células de 10 km.
-* ...  
+A API de microservice foi implementada conforme [nossa proposta de aprimoramento do protocolo GeoURI na INDE de 2020](https://inde.gov.br/images/inde/poster3/Expans%C3%A3o%20do%20protocolo%20GeoURI.pdf), através do PostgREST. Endpoints previstos:
+
+<!--Funções de resolução para uso na API implementadas online-->
+Endpoint | Descrição
+---------|------------
+`osm.org/geo:{lat},{lon}`  |  efeua `resolver_geo_uri()`com nível default, *L5*, ou seja, retorna célula de 1km. Por exemplo `-3.807267,-38.522481` retorna a célula 1KM, mãe de `200ME67098N108696`.
+`osm.org/geo:{lat},{long};u={uncertainty}` |  efeua `resolver_geo_uri()`com nível aferido por `uncertain_to_size()`. Por exemplo `-3.807267,-38.522481;u=4000` retorna a célula 5KM, mãe de `200ME67098N108696`.  <!-- usa a incerteza para deduzir o nível mais próximo e efeuar `search_cell(p_x,p_y,p_level)`. Por exemplo erro de 5km a 10km retorna células de 10 km.-->
+`osm.org/geo:br_ibge:{nome}`   |  retorna célula solicitada na sintaxe original,  por exemplo `5KME5300N9630` retorna seus dados.
+`osm.org/geo:ghs:{geohash}`   |  retorna célula IBGE com diâmetro de mesma ordem de graqndeza, e contendo o centro do Geohash requisitado.
 
 ## INSTALAÇÃO
 
