@@ -1,35 +1,10 @@
 /**
- * System's Public library (commom for WS and others)
- * PREFIXES: geojson_
- * Extra: PostGIS's Brazilian SRID inserts.
- * See also https://github.com/ppKrauss/SizedBigInt/blob/master/src_sql/step2-sizedNaturals.sql
- *          https://github.com/AddressForAll/WS/blob/master/src/sys_pubLib.sql
+ * System's Public library (commom for many scripts)
+ * Module: PostGIS/GeoJSON. Full.
  */
 
 CREATE extension IF NOT EXISTS postgis;
-CREATE extension IF NOT EXISTS adminpack;  -- for pg_file_write
 
--------------------------------
--- system -generic
-
-CREATE or replace FUNCTION volat_file_write(
-  file text,
-  fcontent text,
-  msg text DEFAULT 'Ok',
-  append boolean DEFAULT false
-) RETURNS text AS $f$
-  -- solves de PostgreSQL problem of the "LAZY COALESCE", as https://stackoverflow.com/a/42405837/287948
-  SELECT msg ||'. Content bytes '|| CASE WHEN append THEN 'appended:' ELSE 'writed:' END
-         ||  pg_catalog.pg_file_write(file,fcontent,append)::text
-         || E'\nSee '|| file
-$f$ language SQL volatile;
-COMMENT ON FUNCTION volat_file_write
-  IS 'Do lazy coalesce. To use in a "only write when null" condiction of COALESCE(x,volat_file_write()).'
-;
-
-CREATE or replace FUNCTION  stragg_prefix(prefix text, s text[], sep text default ',') RETURNS text AS $f$
-  SELECT string_agg(x,sep) FROM ( select prefix||(unnest(s)) ) t(x)
-$f$ LANGUAGE SQL IMMUTABLE;
 
 CREATE or replace FUNCTION write_geojson_Features(
   sql_tablename text, -- ex. 'vw_grid_ibge_l1' or 'SELECT * FROM t WHERE cond'
@@ -90,28 +65,6 @@ COMMENT ON FUNCTION write_geojson_Features
   IS 'run file_write() dynamically to save specified relation as GeoJSON FeatureCollection.'
 ;
 
-----------
-CREATE or replace FUNCTION pg_relation_lines(p_tablename text)
-RETURNS bigint LANGUAGE 'plpgsql' AS $f$
-  DECLARE
-    lines bigint;
-  BEGIN
-      EXECUTE 'SELECT COUNT(*) FROM '|| $1 INTO lines;
-      RETURN lines;
-  END
-$f$;
-COMMENT ON FUNCTION pg_relation_lines
-  IS 'run COUNT(*), a complement for pg_relation_size() function.'
-;
-
-CREATE or replace FUNCTION  jsonb_objslice(
-    key text, j jsonb, rename text default null
-) RETURNS jsonb AS $f$
-    SELECT COALESCE( jsonb_build_object( COALESCE(rename,key) , j->key ), '{}'::jsonb )
-$f$ LANGUAGE SQL IMMUTABLE;  -- complement is f(key text[], j jsonb, rename text[])
-COMMENT ON FUNCTION jsonb_objslice(text,jsonb,text)
-  IS 'Get the key as encapsulated object, with same or changing name.'
-;
 
 -- GeoJSON complements:
 
@@ -196,30 +149,3 @@ COMMENT ON FUNCTION ST_AsGeoJSONb IS $$
 $$;
 
 -------------------------------
-
--- IBGE Albers, SRID number convention in Project DigitalGuard-BR:
-INSERT into spatial_ref_sys (srid, auth_name, auth_srid, proj4text, srtext)
-VALUES (
-  952019,
-  'BR:IBGE',
-  52019,
-  '+proj=aea +lat_0=-12 +lon_0=-54 +lat_1=-2 +lat_2=-22 +x_0=5000000 +y_0=10000000 +ellps=WGS84 +units=m +no_defs',
-  $$PROJCS[
-  "Conica_Equivalente_de_Albers_Brasil",
-  GEOGCS[
-    "GCS_SIRGAS2000",
-    DATUM["D_SIRGAS2000",SPHEROID["Geodetic_Reference_System_of_1980",6378137,298.2572221009113]],
-    PRIMEM["Greenwich",0],
-    UNIT["Degree",0.017453292519943295]
-  ],
-  PROJECTION["Albers"],
-  PARAMETER["standard_parallel_1",-2],
-  PARAMETER["standard_parallel_2",-22],
-  PARAMETER["latitude_of_origin",-12],
-  PARAMETER["central_meridian",-54],
-  PARAMETER["false_easting",5000000],
-  PARAMETER["false_northing",10000000],
-  UNIT["Meter",1]
- ]$$
-)
-ON CONFLICT DO NOTHING;

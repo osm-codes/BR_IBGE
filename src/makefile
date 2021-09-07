@@ -37,7 +37,11 @@ grid_alt1_clean: grid_alt1_clean_sql grid_alt1_clean_files
 
 sql_prepare:
 	psql $(pg_uri) -c "CREATE DATABASE $(pg_db)"
-	psql $(pg_uri)/$(pg_db) < step2_pubLib.sql
+	psql $(pg_uri)/$(pg_db) < step2/pubLib02-aggregate.sql
+	psql $(pg_uri)/$(pg_db) < step2/pubLib03-admin.sql
+	psql $(pg_uri)/$(pg_db) < step2/pubLib03-json.sql
+	psql $(pg_uri)/$(pg_db) < step2/pubLib05-postGis.sql
+	psql $(pg_uri)/$(pg_db) < step2/pubLib06-geoJSON.sql
 
 grid_orig_get:
 	@echo " (cuidado se a base não for $(pg_db)=IBGE, editar step3)"
