@@ -1,6 +1,6 @@
 ## Public schema, common Library (PubLib)
 
-PubLib functions here are a subset of the PubLib-central Version 1 at<br/>&nbsp; http://git.addressforall.org/pubLib-central-v1
+PubLib functions here are a subset of the PubLib-central Version 1 at<br/>&nbsp; http://git.addressforall.org/pg_pubLib-v1
 <br/>Each project selects the functions it needs, maintaining it updated to be compatible with newer ones, of other projects, in the same database.
 
 PubLib is an effort to reduce the impact of the "historic rationale" used by PostgreSQL developer team, like [the lack of overloads in some native functions, as the *round*() function](https://stackoverflow.com/a/20934099/287948), or the lack of [orthogonality](https://en.wikipedia.org/wiki/Orthogonal_instruction_set) in overloads and casts. PubLib is also a [Library of Snippets](https://wiki.postgresql.org/wiki/Category:Library_Snippets), implementating small and frequently used functions. Typical  "small function" are also [IMMUTABLE](https://www.postgresql.org/docs/current/xfunc-volatility.html) ones.
