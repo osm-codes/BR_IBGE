@@ -4,8 +4,8 @@
 
     * Controle sintático
     * Sistemas de coordenadas padronizados
-* [ARQUIVOS STEP](arquivos-step)
-* [BIBLIOTECA](#biblioteca)
+* [ARQUIVOS STEP](#arquivos-step)
+* [BIBLIOTECA](#biblioteca-principal)
     * Uso geral
     * Interação PostgREST
 
@@ -39,7 +39,7 @@ CREATE TABLE grade_id04_teste1 AS
   FROM (SELECT *, st_transform(geom,952019) as geom2  FROM grade_id04 ) t1
  ) t2
  LIMIT 29000
-; -- pode resuzir LIMIT, é só para visualizar algo no Sul do Brasil com QGIS
+; -- pode reduzir LIMIT, é só para visualizar algo no Sul do Brasil com QGIS
 ```
 
 Nas colunas originais de `nome_*` (ex. `nome_1km`) adotam-se as coordenadas _XY_ Albers, destacadas pela coluna `nome_xy`.
@@ -51,8 +51,8 @@ Os pontos de referência de nome `id_unico` do IBGE (*pt_ref*), nas grades 1KM e
 
 ![](../assets/grades-ptRef-ptCenter.png)
 
-A seta azul indica o deslozamente necessário para ir de *pt_ref* para *pt_center* específicos de cada célula.
-Como células de 200M e 1KM coexistem no mesmo conjunto de dados, o IBGE parece ter optado pelo deslocamento no ponto de referência das células de 200M,  para evidar confusão com os pontos das de 1KM.
+A seta azul indica o deslocamento necessário para ir de *pt_ref* para *pt_center* específicos de cada célula.
+Como células de 200M e 1KM coexistem no mesmo conjunto de dados, o IBGE parece ter optado pelo deslocamento no ponto de referência das células de 200M,  para evitar confusão com os pontos das de 1KM.
 
 Por fim, podemos confirmar no QGIS que da grade de 5KM em diante (10KM, 50KM, etc.), todas as grades de sumarização (_ST_Union_ do _script_ abaixo) seguem a referência no canto inferior esquerdo, como na de 1KM.
 
@@ -79,7 +79,7 @@ CREATE TABLE grade_id04_5km AS
  ) t2;
 ```
 
-Desta evidência final do comportamento dos pontos de referência chegamos à função que coloca pontos de referência (oriundos ne `id_unico`, `nome_1km`, `nome_5km`, etc.) no centro da célula:
+Desta evidência final do comportamento dos pontos de referência chegamos à função que coloca pontos de referência (oriundos de `id_unico`, `nome_1km`, `nome_5km`, etc.) no centro da célula:
 
 ```SQL
 CREATE FUNCTION grid_ibge.name_to_center(name text) RETURNS int[] AS $f$
@@ -115,7 +115,7 @@ A transformação de volta, **codificando o nome de célula**  a partir do `gid`
 
 ### Sistemas de coordenadas padronizados
 
-Algumas funcções de biblioteca trabalham em sistemas de coordenadas diferentes, mas todos são internamente padronizados, seguindo as seguintes convenções:
+Algumas funções de biblioteca trabalham em sistemas de coordenadas diferentes, mas todos são internamente padronizados, seguindo as seguintes convenções:
 
 1. **LatLon** GeoURI, **(*lat,lon,uncert*)** &nbsp; onde *lat* é latitude, *lon* é longitude e _uncert_ é incerteza (raio do disco de incerteza em metros). O SRID do GeoURI é o 4326.
 
@@ -278,10 +278,10 @@ A API de microservice foi implementada conforme [nossa proposta de aprimoramento
 <!--Funções de resolução para uso na API implementadas online-->
 Endpoint | Descrição
 ---------|------------
-`osm.org/geo:{lat},{lon}`  |  efeua `resolver_geo_uri()`com nível default, *L5*, ou seja, retorna célula de 1km. Por exemplo `-3.807267,-38.522481` retorna a célula 1KM, mãe de `200ME67098N108696`.
-`osm.org/geo:{lat},{long};u={uncertainty}` |  efeua `resolver_geo_uri()`com nível aferido por `uncertain_to_size()`. Por exemplo `-3.807267,-38.522481;u=4000` retorna a célula 5KM, mãe de `200ME67098N108696`.  <!-- usa a incerteza para deduzir o nível mais próximo e efeuar `search_cell(p_x,p_y,p_level)`. Por exemplo erro de 5km a 10km retorna células de 10 km.-->
+`osm.org/geo:{lat},{lon}`  |  efetua `resolver_geo_uri()`com nível default, *L5*, ou seja, retorna célula de 1km. Por exemplo `-3.807267,-38.522481` retorna a célula 1KM, mãe de `200ME67098N108696`.
+`osm.org/geo:{lat},{long};u={uncertainty}` |  efetua `resolver_geo_uri()`com nível aferido por `uncertain_to_size()`. Por exemplo `-3.807267,-38.522481;u=4000` retorna a célula 5KM, mãe de `200ME67098N108696`.  <!-- usa a incerteza para deduzir o nível mais próximo e efetuar `search_cell(p_x,p_y,p_level)`. Por exemplo erro de 5km a 10km retorna células de 10 km.-->
 `osm.org/geo:br_ibge:{nome}`   |  retorna célula solicitada na sintaxe original,  por exemplo `5KME5300N9630` retorna seus dados.
-`osm.org/geo:ghs:{geohash}`   |  retorna célula IBGE com diâmetro de mesma ordem de graqndeza, e contendo o centro do Geohash requisitado.
+`osm.org/geo:ghs:{geohash}`   |  retorna célula IBGE com diâmetro de mesma ordem de grandeza, e contendo o centro do Geohash requisitado.
 
 ## INSTALAÇÃO
 
