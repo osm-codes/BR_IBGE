@@ -18,6 +18,3 @@ Os formatos de arquivo e descritores de metadados seguem as recomendações  de 
 
 
 -->
-
-
-select distinct st_astext( st_centroid(geom)  ) from  grade_all_ids TABLESAMPLE BERNOULLI(0.01) limit 10
