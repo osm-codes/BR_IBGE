@@ -152,7 +152,7 @@ Conjunto `step2*_pubLib-*.sql`. Arquivos de instalação da biblioteca do *schem
 
 ### Step 3 - Build IBGE
 
-[`step3_build_IBGE.sh`](step3_build_IBGE.sh). Monta em `/tmp/sandbox/ibge_grade` os *shapfiles* originais do IBGE, baixados pelo step1, e rodando `shp2pgsql`, comando que vem junto com o pacote `PostGIS`.
+[`step3_build_IBGE.sh`](step3_build_IBGE.sh). Monta em `/tmp/sandbox/ibge_grade` os *shapefiles* originais do IBGE, baixados pelo step1, e rodando `shp2pgsql`, comando que vem junto com o pacote `PostGIS`.
 
 ### Step ...
 
@@ -174,7 +174,7 @@ Foram criados conjuntos de 1 ou mais  [Testes de Regressão](https://pt.stackove
 
 ### Step 7 - Homolog
 
-[`step7_homolog.sql`](step7_homolog.sql). A homologação das funções implementadas pelo step4 se dá pelo *assert*  com os dados originais dos *shapfiles* do IBGE, montantados pelo step3. Demora um pouco para rodar, e tem como finalidade única deixar registrados os critérios de homologação empregados, para quem desejar auditar.
+[`step7_homolog.sql`](step7_homolog.sql). A homologação das funções implementadas pelo step4 se dá pelo *assert*  com os dados originais dos *shapefiles* do IBGE, montantados pelo step3. Demora um pouco para rodar, e tem como finalidade única deixar registrados os critérios de homologação empregados, para quem desejar auditar.
 
 ### Outros arquivos
 
@@ -285,7 +285,7 @@ Endpoint | Descrição
 
 ## INSTALAÇÃO
 
-Use no terminal, a parir desta pasta, o comando `make` para listar as alternativas de instalação integral (*all1* ou *all2* descritas abaixo), que rodam todos os  _targets_ necessários, exceto `clean`. O comando `make` sem target informa também o que fazem os demais targets, que podem ser executados em separado.
+Use no terminal, a parir desta pasta, o comando `make` para listar as alternativas de instalação integral (*all1* ou *all2* descritas abaixo), que rodam todos os _targets_ necessários, exceto `clean`. O comando `make` sem target informa também o que fazem os demais targets, que podem ser executados em separado.
 
 Na pasta anterior, em [/src/README.md](../README.md), as versões e configurações necessárias são detalhadas.
 
@@ -298,14 +298,14 @@ make all2
 
 ### Reproduzindo o processo completo
 
-Se o objetivo for reproduzir, auditorar ou atualizar a  partir da **Grade Estatística IBGE Original**, demora um pouco mais e requer um pouco mais de espaço em disco, mas é igualmente simples. Basta executar no terminal Linux, nesta pasta, o comando:
+Se o objetivo for reproduzir, auditorar ou atualizar a partir da **Grade Estatística IBGE Original**, demora um pouco mais e requer um pouco mais de espaço em disco, mas é igualmente simples. Basta executar no terminal Linux, nesta pasta, o comando:
 
 ```sh
 make all1
 ```
 
 Ou executar, na sequência, cada um dos _targets_ definidos nas dependências de *all1*.
-No final de `make grid_orig_get` (ou meio do `make all1`) todas as tabelas de quadrantes,  `grade_id*`, terão sido criadas:
+No final de `make grid_orig_get` (ou meio do `make all1`) todas as tabelas de quadrantes, `grade_id*`, terão sido criadas:
 ```
  grade_id04: 66031 itens inseridos
  grade_id13: 31126 itens inseridos
@@ -317,7 +317,7 @@ No final de `make grid_orig_get` (ou meio do `make all1`) todas as tabelas de qu
 (56 rows)
 ```
 
-Executando em seguida o `make grid_alt1_fromOrig` (final do `make all1`), as tabelas são lidas e as geometrias de célula são convertidas em coordenadas de centro (na função `grid_ibge.censo2010_info_load()`), para formar o identificador de célula com representação binária compacta (representado em *bigint*) na tabela `grid_ibge.censo2010_info`.  O resultado será resumido pela comparação:
+Executando em seguida o `make grid_alt1_fromOrig` (final do `make all1`), as tabelas são lidas e as geometrias de célula são convertidas em coordenadas de centro (na função `grid_ibge.censo2010_info_load()`), para formar o identificador de célula com representação binária compacta (representado em *bigint*) na tabela `grid_ibge.censo2010_info`. O resultado será resumido pela comparação:
 
 resource            | tables | tot_bytes  | tot_size | tot_lines | bytes_per_line
 --------------------|--------|------------|----------|-----------|-----------
@@ -340,11 +340,12 @@ A tabela da nova grade pode ainda ser gravada como CSV,
 ```sql
 COPY grid_ibge.censo2010_info TO '/tmp/grid_ibge_censo2010_info.csv' CSV HEADER;
 ```
+
 Se por acaso o IBGE gerar uma nova versão da grade original, o arquivo CSV deve então ser zipado com o comando `zip` Linux e gravado no presente repositório *git*, na pasta [/data/BR_IBGE](https://github.com/AddressForAll/grid-tests/tree/main/data/BR_IBGE).
 
 ### Compatibilidade
 
-Use `make` na pasta `/src`  para ver instruções e rodar _targets_ desejados.
+Use `make` na pasta `/src` para ver instruções e rodar _targets_ desejados.
 O software foi testado com as seguintes versões e configurações:
 
 * PostgreSQL v12 ou v13, e PostGIS v3. Disponível em *localhost* como service. Rodar make com outra `pg_uri` se o usuário não for *postgres*
@@ -354,12 +355,13 @@ O software foi testado com as seguintes versões e configurações:
 * pastas *default*: rodar o `make` a partir da própria pasta *git*, `/src/BR_new`. Geração de arquivos pelo servidor local PostgreSQL em `/tmp/pg_io`.
 
 Para testes pode-se usar `git clone https://git.osm.codes/BR_IBGE.git` ou uma versão específica zipada, por exemplo `wget -c https://git.osm.codes/BR_IBGE/archive/refs/tags/`. Em seguida, estes seriam os procedimentos básicos para rodar o *make* em terminal *bash*, por exemplo:
+
 ```sh
 cd grid-tests/src/BR_new
 make
 ```
 
-O `make` sem target vai apnas listar as opções. Para rodar um target específico usar `make nomeTarget`.
+O `make` sem target vai apenas listar as opções. Para rodar um target específico usar `make nomeTarget`.
 Para rodar com outra base ou outra URI de conexão com PostreSQL server, usar por exemplo <br/>`make db=outraBase pg_uri=outraConexao nomeTarget`.
 
 ### Homologação
@@ -371,7 +373,7 @@ Podemos assegurar através de comparações com o original, em alguns casos o te
 Foram criadas duas VIEWS para essa finaldiade:
 * ....
 
-Aspectos selecionados e respectivos testes, baseados em comparação com os shapfiles originais do IBGE:
+Aspectos selecionados e respectivos testes, baseados em comparação com os shapefiles originais do IBGE:
 
 * **Geometria das células**: certificadas pela sobreposição exata
 
