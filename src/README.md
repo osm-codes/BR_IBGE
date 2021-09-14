@@ -156,13 +156,13 @@ Conjunto `step2*_pubLib-*.sql`. Arquivos de instalação da biblioteca do *schem
 
 ### Step 4 - Prepare Grid Libs
 
-[`step4_prepareGridLibs.sh`](step4_prepareGridLibs.sh). Arquivo de instalação da [biblioteca principal](#biblioteca-principal), com funções para a manipulação da grade compacta e conversão entre as representações original e compacta.
+[`step4_prepareGridLibs.sql`](step4_prepareGridLibs.sql). Arquivo de instalação da [biblioteca principal](#biblioteca-principal), com funções para a manipulação da grade compacta e conversão entre as representações original e compacta.
 
 ### Step 5 - Build Compact IBGE Grid
 
-[`step5opt1_fromOriginal.sh`](step5opt1_fromOriginal.sh). Processo de ingestão de dados a partir da [grade original](#step-1---downloads).
+[`step5opt1_fromOriginal.sql`](step5opt1_fromOriginal.sql). Processo de ingestão de dados a partir da [grade original](#step-1---downloads).
 
-[`step5opt2_fromCsv.sh`](step5opt2_fromCsv.sh). Processo de ingestão de dados a partir do [arquivo compactado](https://github.com/osm-codes/BR_IBGE/blob/main/data/grid_ibge_censo2010_info.zip).
+[`step5opt2_fromCsv.sql`](step5opt2_fromCsv.sql). Processo de ingestão de dados a partir do [arquivo compactado](https://github.com/osm-codes/BR_IBGE/blob/main/data/grid_ibge_censo2010_info.zip).
 
 ### Step 6 - Asserts
 
