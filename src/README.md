@@ -148,15 +148,21 @@ FROM unnest(grid_ibge.quadrantes_text(
 ```
 ### Step 2 - PubLib
 
-Conjunto `step2*_pubLib-*.sql`. Arquivos de instalação da biblioteca do *schema* `public`, (*public library* - PubLib).  São comuns a outros projetos e podem receber atualizações para manter a compatibilidade global do ecossistema. O sufixo do nome de arquivo (`aggregated`, `json`, `string`, etc.) são as categorias definidas pelo guia PostgreSQL,  exceto pela categoria `overload` que reunem funções de conversão de tipo ou de sobrecarga *build-in*, que podem gerar problemas maiores de compatibilidade.
+Conjunto `step2*_pubLib-*.sql`. Arquivos de instalação da biblioteca do *schema* `public`, (*public library* - PubLib).  São comuns a outros projetos e podem receber atualizações para manter a compatibilidade global do ecossistema. O sufixo do nome de arquivo (`aggregated`, `json`, `string`, etc.) são as categorias definidas pelo guia PostgreSQL, exceto pela categoria `overload` que reunem funções de conversão de tipo ou de sobrecarga *build-in*, que podem gerar problemas maiores de compatibilidade.
 
 ### Step 3 - Build IBGE
 
 [`step3_build_IBGE.sh`](step3_build_IBGE.sh). Monta em `/tmp/sandbox/ibge_grade` os *shapefiles* originais do IBGE, baixados pelo step1, e rodando `shp2pgsql`, comando que vem junto com o pacote `PostGIS`.
 
-### Step ...
+### Step 4 - Prepare Grid Libs
 
-...
+[`step4_prepareGridLibs.sh`](step4_prepareGridLibs.sh). Arquivo de instalação da [biblioteca principal](#biblioteca-principal), com funções para a manipulação da grade compacta e conversão entre as representações original e compacta.
+
+### Step 5 - Build Compact IBGE Grid
+
+[`step5opt1_fromOriginal.sh`](step5opt1_fromOriginal.sh). Processo de ingestão de dados a partir da [grade original](#step-1---downloads).
+
+[`step5opt2_fromCsv.sh`](step5opt2_fromCsv.sh). Processo de ingestão de dados a partir do [arquivo compactado](https://github.com/osm-codes/BR_IBGE/blob/main/data/grid_ibge_censo2010_info.zip).
 
 ### Step 6 - Asserts
 
@@ -188,16 +194,16 @@ grep FUNCTION step4_prepareGridLibs.sql | sed --expression 's/or replace //i' | 
 -->
 Inferência de nível hierárquico:
 * `gid_to_level(gid bigint) → int`:
-* `level_to_prefix(level int) → text`:
-* `level_to_size(level int)  → int`:
-* `prefix_to_level(prefix text) → int`:
+* `level_to_prefix(level int) → text`: converte o número do nível (nível hierárquico da grade do IBGE) para o prefixo original usado em id_unico.
+* `level_to_size(level int)  → int`: converte a convenção de número de nível (nível hierárquico da grade do IBGE) em tamanho do lado da célula, em metros.
+* `prefix_to_level(prefix text) → int`: converte o prefixo original (usado em id_unico) em número de nível (nível hierárquico da grade do IBGE).
 * `size_to_level(size int) → int`:
 * `uncertain_to_size(u int) → int`:
 
 Inferência de quadrante:
-* `quadrantes() → int[]`:
-* `quadrantes_text(prefix text DEFAULT 'ID_') → text[]`: *wrap* para
-* `xy_to_quadrante(x int, y int) → int`:
+* `quadrantes() → int[]`: lista dos quadrantes oficiais.
+* `quadrantes_text(prefix text DEFAULT 'ID_') → text[]`: *wrap* para quadrantes().
+* `xy_to_quadrante(x int, y int) → int`: 
 * `xy_to_quadrante(xyd int[]) → int`: *wrap* para
 * `xy_to_quadrante_text(x int, y int, prefix text DEFAULT 'ID_') → text`: *wrap* para
 * `xy_to_quadrante_text(xyd int[], prefix text DEFAULT 'ID_') → text`: *wrap* para
@@ -206,7 +212,7 @@ Inferência de quadrante:
 
 Transformações padronizadas:
 * `gid_to_gid(gid bigint, L int) → bigint`: se *L* menor, retorna a célula-mãe; se *L* maior, retorna a célula contida mais próxima do centro.
-* `gid_to_xyLcenter(gid bigint) → int[]`:
+* `gid_to_xyLcenter(gid bigint) → int[]`: converte Bigint gid em centro-XY Albers e nível da célula.
 * `gid_to_xyLref(gid bigint) → int[]`:
 * `ijS_to_xySref(i int, j int, s int) → int[]`:
 * `ijS_to_xySref(xys int[]) → int[]`: *wrap* para ijS_to_xySref().
@@ -218,9 +224,9 @@ Transformações padronizadas:
 * `xyL_to_xySref(xyL int[]) → int[]`:
 
 Conversão de nome:
-* `gid_to_name(gid bigint) → text`:
-* `name_to_gid(name text) → bigint`:
-* `name_to_parts(name text) → text[]`:
+* `gid_to_name(gid bigint) → text`: converte Bigint gid no nome de célula original do IBGE.
+* `name_to_gid(name text) → bigint`: converte a string de nome de célula original do IBGE em Bigint gid.
+* `name_to_parts(name text) → text[]`: divide a string do nome da célula do IBGE em três partes.
 * `name_to_parts_normalized(name text) → int[]`:
 * `name_to_xyLcenter(name text) → int[]`:
 
