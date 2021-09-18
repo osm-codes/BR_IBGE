@@ -35,11 +35,11 @@ O principal objetivo foi oferecer uma **estrutura de dados alternativa** à estr
 
 2. **reduzir o tamanho da distribuição** da geometria da grade, de 849&nbsp;Mb (56 arquivos zip) para um só arquivo zip de 44&nbsp;Mb (**5%**&nbsp;dos&nbsp;849).
 
-3. **estruturar de forma mais simples**, capaz de reproduzir funcionalmente os dados estrutura originais, e capaz ainda de ser utilizada:  
+3. **estruturar de forma mais simples**, capaz de reproduzir funcionalmente os dados da estrutura original, e capaz ainda de ser utilizada:  
 
    3.1. **em qualquer banco de dados SQL simples** (por ex. [SQLite](https://en.wikipedia.org/wiki/SQLite)), sem necessidade de extensões GIS ou geometria.
 
-   3.2. **no [PostGIS](https://en.wikipedia.org/wiki/PostGIS)** com as mesmas (ou mais) aplicações que a distribuição original. <br/>Em paricular **otimizar** os algoritmos de "resolução dos identificadores de célula" (*encode/decode*), e de posição espacial em identificador de célula.
+   3.2. **no [PostGIS](https://en.wikipedia.org/wiki/PostGIS)** com as mesmas (ou mais) aplicações que a distribuição original. <br/>Em particular **otimizar** os algoritmos de "resolução dos identificadores de célula" (*encode/decode*), e de posição espacial em identificador de célula.
 
 4. **reduzir a ocupação em disco no banco de dados SQL** (a 20% ou menos do tamanho original).
 
@@ -47,7 +47,7 @@ O principal objetivo foi oferecer uma **estrutura de dados alternativa** à estr
 
 # CONVENÇÕES DO IBGE
 
-Em janeiro de 2016 o IBGE publicou mais formalmente a sua Grade Estatística em [grade_estatistica/censo_2010](https://geoftp.ibge.gov.br/recortes_para_fins_estatisticos/grade_estatistica/censo_2010/), do site `IBGE.gov.br`, onde podemos acessar livremente o [documento de justificativas](https://geoftp.ibge.gov.br/recortes_para_fins_estatisticos/grade_estatistica/censo_2010/grade_estatistica.pdf) (que infelizmente não pode ser utilizado como referência técnica) e os arquivos da geometria da grade em *shapefile*.
+Em janeiro de 2016 o IBGE publicou mais formalmente a sua Grade Estatística em [grade_estatistica/censo_2010](https://geoftp.ibge.gov.br/recortes_para_fins_estatisticos/grade_estatistica/censo_2010/), do site `IBGE.gov.br`, onde podemos acessar livremente o [documento de justificativas](https://web.archive.org/web/20180219033336/https://geoftp.ibge.gov.br/recortes_para_fins_estatisticos/grade_estatistica/censo_2010/grade_estatistica.pdf) (que infelizmente não pode ser utilizado como referência técnica) e os arquivos da geometria da grade em *shapefile*.
 
 Se você nunca havia antes ouvido falar, veja o [filminho didáco sobre ela](https://www.youtube.com/watch?v=s5yrDV_c2-4), ou explore o Censo 2010 através da [grade *online*](https://mapasinterativos.ibge.gov.br/grade/default.html) (ilustração abaixo).
 
@@ -63,7 +63,7 @@ A seguir a descrição dessa grade mesclada aos dados. Dada a precariedade da do
 
 ## Estrutura das tabelas
 
-Todas as tabelas criadas pelos *shapefiles* originais do IBGE (vide ) possuem a estrutura:
+Todas as tabelas criadas pelos *shapefiles* originais do IBGE (vide [grade_estatistica/censo_2010](https://geoftp.ibge.gov.br/recortes_para_fins_estatisticos/grade_estatistica/censo_2010/)) possuem a estrutura:
 
 Column   |            Type             | Comments                 
 ----------|----------------------------|---------
@@ -92,7 +92,7 @@ Em qualquer quadrante *qq* o resultado de `SELECT DISTINCT substr(id_unico,1,4) 
 Quanto ao significado do valor de `id_unico`, ele segue a *URI Template* `{lado}E{X}N{Y}`, onde `lado` é o tamanho do lado da célula, `X` e `Y` as "coordenadas da célula" tendo como referência o seu canto... Qual canto?
 Tomando como referência as coordenadas do centro da geometria (função PostGIS `ST_Centroid`)
 percebemos que o IBGE não adotou uma convenção regular: para células de 1 km basta truncar ou usar o canto inferior direito,
-mas para células de 200 metros é o canto superior direito.
+mas para células de 200 metros é o canto superior direito (vide [SRC/INTRODUÇÃO](src/README.md#introdução)).
 
 ```SQL
 SELECT * FROM (
@@ -219,7 +219,7 @@ As funções de resolução para uso na API são descritas no README do `/src`. 
 * Endpoint `br_ibge.osm.org/geo:{lat},{long};u={uncertainty}`: usa a incerteza para deduzir o nível mais próximo e efeuar `search_cell(p_x,p_y,p_level)`. Por exemplo erro de 5km a 10km retorna células de 10 km.
 * ...  
 
-Ilustrando através de ponos de controle:  
+Ilustrando através de pontos de controle:  
 
 | municipality            | name                                    | geo_uri                   | wikidata_id                            | `osm.codes/geoURI`      |
 |-------------------------|-----------------------------------------|---------------------------|-----------------------------------------|------------------|
@@ -238,7 +238,7 @@ Documentação para demais detalhes, ver [`/src/README.md`](src/README.md):
 
 * [SRC/INTRODUÇÃO](src/README.md#introdução)
 
-* [SRC/BIBLIOTECA](src/README.md#biblioteca)
+* [SRC/BIBLIOTECA](src/README.md#biblioteca-principal)
     * Uso geral
     * Interação API PostgREST
 
