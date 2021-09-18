@@ -53,6 +53,8 @@ Se você nunca havia antes ouvido falar, veja o [filminho didáco sobre ela](htt
 
 ![](assets/BR_IBGE-exploreEx1.jpg)
 
+<img align="right" src="assets/BR_IBGE-LX.png" width="400px" height="auto">
+
  A "grade" do IBGE é na verdade um **conjunto hierarquizado de grades** (ou _"grid system"_), aparentemente seguindo as recomendações [INSPIRE *D2.8.I.2*](https://inspire.ec.europa.eu/documents/Data_Specifications/INSPIRE_DataSpecification_GG_v3.1.pdf), "Data Specification on Geographical Grid Systems – Technical Guidelines" de 2014, ou anterior.
 
 Cada quadrante da grade IBGE  de menor escala (na [ilustração do sumário](#grade-estatística-ibge-em-representação-compacta) a grade nível *L0*) é subdividido em quadrados com lado medindo 1/5 ou 1/2 do seu tamanho para formar a grade seguinte, de menor escala e maior resolução.
