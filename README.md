@@ -53,7 +53,7 @@ Se você nunca havia antes ouvido falar, veja o [filminho didáco sobre ela](htt
 
 ![](assets/BR_IBGE-exploreEx1.jpg)
 
-<img align="right" src="assets/BR_IBGE-LX.png" width="400px" height="auto">
+<img align="right" src="assets/BR_IBGE-L.png" width="400px" height="auto">
 
  A "grade" do IBGE é na verdade um **conjunto hierarquizado de grades** (ou _"grid system"_), aparentemente seguindo as recomendações [INSPIRE *D2.8.I.2*](https://inspire.ec.europa.eu/documents/Data_Specifications/INSPIRE_DataSpecification_GG_v3.1.pdf), "Data Specification on Geographical Grid Systems – Technical Guidelines" de 2014, ou anterior.
 
