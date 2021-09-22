@@ -45,7 +45,7 @@ O principal objetivo foi oferecer uma **estrutura de dados alternativa** à estr
 
 5. **distribuir em formato mais aberto** (não-proprietário) e mais simples e interoperável do que o [Shapefile](https://en.wikipedia.org/wiki/Shapefile): o formato [CSV](https://en.wikipedia.org/wiki/Comma-separated_values) é legível até por planilha (ex. Excel) e é um padrão aberto universal.
 
-# CONVENÇÕES DO IBGE
+## CONVENÇÕES DO IBGE
 
 Em janeiro de 2016 o IBGE publicou mais formalmente a sua Grade Estatística em [grade_estatistica/censo_2010](https://geoftp.ibge.gov.br/recortes_para_fins_estatisticos/grade_estatistica/censo_2010/), do site `IBGE.gov.br`, onde podemos acessar livremente o [documento de justificativas](https://web.archive.org/web/20180219033336/https://geoftp.ibge.gov.br/recortes_para_fins_estatisticos/grade_estatistica/censo_2010/grade_estatistica.pdf) (que infelizmente não pode ser utilizado como referência técnica) e os arquivos da geometria da grade em *shapefile*.
 
@@ -63,7 +63,7 @@ A grade seguinte à *L0*, a *L1*, tem quadrados com 500/5&nbsp;km&nbsp;=&nbsp;10
 Na distribuição da geometria das grades de 200m e 1km foram acrescentados **dados relevantes do Censo de 2010**.
 A seguir a descrição dessa grade mesclada aos dados. Dada a precariedade da documentação, **algumas dúvidas permanecem**, e outras foram deduzidas por reengenharia, também descrita a seguir.
 
-## Estrutura das tabelas
+### Estrutura das tabelas
 
 Todas as tabelas criadas pelos *shapefiles* originais do IBGE (vide [grade_estatistica/censo_2010](https://geoftp.ibge.gov.br/recortes_para_fins_estatisticos/grade_estatistica/censo_2010/)) possuem a estrutura:
 
@@ -86,7 +86,7 @@ Column   |            Type             | Comments
 `shape_area` | numeric                     | (redundante)
 `geom`       | geometry(MultiPolygon,4326) | geometria da célula em coordenadas LatLong WGS84 (sem projeção)
 
-## Nomenclatura das células
+### Nomenclatura das células
 
 Em qualquer quadrante *qq* o resultado de `SELECT DISTINCT substr(id_unico,1,4) id_prefix FROM grade_IDqq` será o conjunto
 {"1KME",&nbsp;"200M"}. Isso significa que todos os demais atributos `nome_*` (e `quadrante`) da estrutura acima, são reduntantes. Só existem esses dois tipos de célula, sendo a menor delas, 200 m, usada para o meio urbano, onde se faz necessária uma cobertura mais densa. No caso das células com `id_prefix` "1KME", de 1 km de lado, teremos `id_unico=nome_1km`.
@@ -120,7 +120,7 @@ O algoritmo foi validado contra células de 200m (flag `is_200m`) e 1km. conform
 
 A mesma heurística pode ser utilizada para a recuperação de dados a partir do identificador IBGE das células de 200 m e de 1 km. A generalização para células maiores (10 km, 50 km etc.) requer uma avaliação mais detalhada, a seguir.
 
-# DECISÕES DE PROJETO
+## DECISÕES DE PROJETO
 
 Mesmo sendo uma reprodução fiel e completa da grade original, alinhada aos [objetivos](#grade-estatística-ibge-em-representação-compacta) apresentados acima, algumas decisões são arbitrárias e se tornam convenções, que não podem ser revisadas depois de homologada a proposta:
 
@@ -134,7 +134,7 @@ Mesmo sendo uma reprodução fiel e completa da grade original, alinhada aos [ob
 
 * Valores `fem` e `masc` arredondados: por serem antigos e mais imprecisos que `pop`, não nos preocupamos com a precisão em arredondamentos.
 
-# ALGORITMOS IMPLANTADOS
+## ALGORITMOS IMPLANTADOS
 
 Foram desenvolvidos desde simples "instaladores" a algorimos complexos, com as seguintes finalidades:
 
@@ -146,7 +146,7 @@ Na [seção INSTALAÇÃO](#instalação) abaixo, descreve-se como cada uma dessa
 
 A seguir a descrição dos algoritmos que geram a conversão da grade original em compacta, e vice-versa, que transformam a compacta em original, e outros recursos.
 
-## Estrutura compacta
+### Estrutura compacta
 
 Com rótulo e geometria compactados em um simples inteiro de 64 bits (*bigint* no PostgreSQL), e eliminando outras redundâncias, as informações da grade original podem ser transferidas, sem perdas, para a seguinte estrutura:
 
@@ -169,7 +169,7 @@ Por exemplo, o valor do `gid` da célula de 200M que contém o [Marco Zero de S�
 
 Com isso, podemos indexar além das células fornecidas pelos shapefiles do IBGE, todas as demais, criando um grande e econômico _cache_ das grades de sumarização.
 
-## Visualização dos identificadores
+### Visualização dos identificadores
 
 Na biblioteca são oferecidas funções geradoras da geometria da célula, **não há necessidade de se armazenar a geometria da célula**. As funções, principalmente aquelas que tomam como argumento apenas o *gid*, são simples e rápidas o bastante no PostGIS. No QGIS, um grande número de células podem ser vistas simultaneamente através de uma VIEW SQL, sem cache. Por exemplo a grade *L1* inteira:
 
@@ -188,7 +188,7 @@ As grades *L0* e *L1* podem também ser visualizadas no repositório git, respec
 
 ![](assets/grades-L0_L1_L2.png)
 
-## Resolução dos identificadores de célula
+### Resolução dos identificadores de célula
 
 Cada célula da grade tem seu nome, ou seja, um identificador único expresso conforme convenções do IBGE.
 O nome pode ser "resolvido" em geometria da célula. Essa resolução é realizada por funções de biblioteca. Exemplos:
@@ -196,13 +196,13 @@ O nome pode ser "resolvido" em geometria da célula. Essa resolução é realiza
 * resolução do nome em *gid*: função `name_to_gid()`.
 * resolução do nome  em coordenadas, ou em geometria da célula: funções `name_to_parts()`, `name_to_xyLcenter()`, `draw_cell()` e outras.
 
-## Resolução de ponto em célula
+### Resolução de ponto em célula
 
 A solução proposta na presente versão indexada por XY permite usar a representação interna invez da busca geométrica.
 
 Por exemplo o ponto XY=(4580490.89,8849499.5) pode primeiramente ser arredondado para inteiros e depois aproximado para a célula mais próxima, conforme algoritmo tradicional de "snap to grid". A função `geoURI_to_gid()` implementa a resolução do ponto dado por [geoURI](https://en.wikipedia.org/wiki/Geo_URI_scheme).
 
-## Adaptações para outros países
+### Adaptações para outros países
 
 Conforme necessidades, os _scripts_ SQL podem ser facilmente adaptados, desde que refatorando nos diversos scripts. As adaptações mais comuns são:
 
@@ -212,7 +212,7 @@ Conforme necessidades, os _scripts_ SQL podem ser facilmente adaptados, desde qu
 
 * Discarte do preparo: a operação de `DROP CASCADE` pode ser comentada caso esteja realizando testes, fazendo por partes, ou reusando o *schema* em outras partes do seu sistema.
 
-## API
+### API
 As funções de resolução para uso na API são descritas no README do `/src`. Com devidas configurações no NGINX elas se tornam os seguintes _endpoints_:
 
 * ... osm.org/geo:br_ibge2010:{nome} ou {gid}  .. idem osm.org/geo:br_cep:04569010  por hora retorna CRP. ou busca br_crp mas
@@ -234,7 +234,7 @@ Demais exemplos no *dataset* [`data/ptCtrl.csv`](data/ptCtrl.csv).
 
 ----------------
 
-## INSTALAÇÃO, COMPATIBILIDADE, BIBLIOTECA, ETC
+### INSTALAÇÃO, COMPATIBILIDADE, BIBLIOTECA, ETC
 
 Documentação para demais detalhes, ver [`/src/README.md`](src/README.md):
 
@@ -252,7 +252,7 @@ Documentação para demais detalhes, ver [`/src/README.md`](src/README.md):
 
 ------
 
-## DISTRIBUIÇÃO DA GRADE COMPACTA
+### DISTRIBUIÇÃO DA GRADE COMPACTA
 
 Na pasta `/data` temos:
 * [grid_ibge_censo2010_info.zip](data/grid_ibge_censo2010_info.zip): grade compacta CSV zipada.
