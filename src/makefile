@@ -45,7 +45,7 @@ sql_prepare:
 
 grid_orig_get:
 	@echo " (cuidado se a base não for $(pg_db)=IBGE, editar step3)"
-	#sh step1_download_IBGE.sh
+	sh step1_download_IBGE.sh
 	sh step3_build_IBGE.sh
 
 grid_alt1_fromOrig:
@@ -89,12 +89,12 @@ grid_toGeoJSON:
 	psql $(pg_uri)/$(pg_db) -c "SELECT * FROM vw_write_grid_ibge500km"
 	psql $(pg_uri)/$(pg_db) -c "SELECT * FROM vw_write_grid_ibge100km"
 
-grid_homolog: ../data/step7_homolog.txt
+grid_homolog: ../data/step7a_homolog.txt
 	@echo "Reproduzindo os testes de homologação contra IBGE original (pode demorar)"
 	cp ../data/ptCtrl.csv /tmp
-	psql $(pg_uri)/$(pg_db) < step7_homolog.sql > /tmp/br_ibge_step7_homolog.txt
+	psql $(pg_uri)/$(pg_db) < step7a_homologLite.sql > /tmp/br_ibge_step7a_homolog.txt
 	@echo " ... Conferindo por diff se bate com a última versão postada:"
-	diff ../data/step7_homolog.txt /tmp/br_ibge_step7_homolog.txt
+	diff ../data/step7a_homolog.txt /tmp/br_ibge_step7a_homolog.txt
 
 ## Concrete cleaner targets:
 

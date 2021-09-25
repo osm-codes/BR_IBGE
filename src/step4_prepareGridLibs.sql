@@ -273,6 +273,11 @@ CREATE FUNCTION grid_ibge.gid_to_quadrante(gid bigint) RETURNS int AS $f$
   FROM ( SELECT grid_ibge.gid_to_xyLcenter(gid) ) t(xyL)
 $f$ LANGUAGE SQL IMMUTABLE;
 
+CREATE FUNCTION grid_ibge.quadrante_to_gid(q int) RETURNS bigint AS $f$
+  SELECT grid_ibge.xyLref_to_gid(p[1],p[2],0)
+  FROM (SELECT grid_ibge.ijS_to_xySref(q-(q/10)*10, q/10, 500000)) t(p)
+$f$ LANGUAGE SQL IMMUTABLE;
+
 CREATE FUNCTION grid_ibge.gid_to_quadrante_text(gid bigint, prefix text DEFAULT 'ID_') RETURNS text AS $wrap$
   SELECT prefix||lpad(grid_ibge.gid_to_quadrante(gid)::text,2,'0')
 $wrap$ LANGUAGE SQL IMMUTABLE;
@@ -294,6 +299,12 @@ $f$ LANGUAGE SQL IMMUTABLE;
 CREATE FUNCTION grid_ibge.gid_to_gid(gid bigint, L int) RETURNS bigint AS $f$
   SELECT CASE WHEN gid & 7 = L THEN gid ELSE  grid_ibge.xyLany_to_gid(xyL[1],xyL[2],L) END
   FROM ( SELECT grid_ibge.gid_to_xyLcenter(gid) ) t(xyL)
+$f$ LANGUAGE SQL IMMUTABLE;
+
+CREATE or replace FUNCTION grid_ibge.gid_contains(big_gid bigint, small_gid bigint) RETURNS boolean AS $f$
+  SELECT big_l < (small_gid & 7::bigint)::int
+         AND big_gid = grid_ibge.xyLany_to_gid(xyl[1], xyl[2], big_l)
+  FROM (SELECT (big_gid & 7::bigint)::int, grid_ibge.gid_to_xyLcenter(small_gid)) t(big_l,xyl)
 $f$ LANGUAGE SQL IMMUTABLE;
 
 CREATE FUNCTION grid_ibge.xyLany_to_name(x int, y int, L int) RETURNS text AS $f$
@@ -406,10 +417,20 @@ CREATE FUNCTION grid_ibge.draw_cell_center( -- by GID
 $f$ LANGUAGE SQL IMMUTABLE;
 
 ---------------------------
-
-
--- DROP VIEW grid_ibge.vw_original_ibge_rebuild;
-CREATE VIEW grid_ibge.vw_original_ibge_rebuild AS
+-- drop FUNCTION grid_ibge.original_ibge_rebuild;
+CREATE FUNCTION grid_ibge.original_ibge_rebuild(
+  p_gid bigint,
+  p_limit bigint DEFAULT 10 -- CUIDADO, com NULL leva horas ou dias!
+) RETURNS TABLE (
+    gid bigint,             id_unico text,
+    nome_1km text,          nome_5km text,
+    nome_10km text,         nome_50km text,
+    nome_100km text,        nome_500km text,
+    quadrante text,
+    masc integer,           fem integer,
+    pop integer,            dom_ocu integer,
+    geom geometry
+) AS $f$
   SELECT gid, -- non-original
          grid_ibge.gid_to_name(gid) AS id_unico,
          grid_ibge.gid_to_name( grid_ibge.gid_to_gid(gid,5) ) AS nome_1km,
@@ -429,9 +450,16 @@ CREATE VIEW grid_ibge.vw_original_ibge_rebuild AS
           ROUND(pop*pop_fem_perc::real/100.0)::int AS fem
    FROM grid_ibge.censo2010_info
    WHERE NOT(is_cache) -- level>=5 as in original
+         AND grid_ibge.gid_contains(p_gid,gid)
+   LIMIT p_limit
   ) t
+$f$ LANGUAGE SQL IMMUTABLE;
+COMMENT ON FUNCTION grid_ibge.original_ibge_rebuild
+  IS 'Original IBGE structure and content. A function like a parametrized VIEW, to void VIEW in QGIS and other scanners.'
 ;
--- para visualizar no QGIS precisa criar view de um só quadrante para não sobrecarregar.
+-- exemplo. SELECT * FROM grid_ibge.original_ibge_rebuild(2800000103500001,500);
+-- Evitar uso de quadrantes, mesmo com limit baixo pois gid_contains() é muito lenta. Exemplo perigoso:
+--   SELECT * FROM grid_ibge.original_ibge_rebuild( grid_ibge.quadrante_to_gid(04), 20 );
 
 ------------------
 ------------------
