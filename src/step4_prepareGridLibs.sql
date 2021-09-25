@@ -28,6 +28,7 @@ COMMENT ON COLUMN grid_ibge.censo2010_info.gid IS 'ID com informação embutida 
 COMMENT ON COLUMN grid_ibge.censo2010_info.pop IS 'População total dentro da célula';
 COMMENT ON COLUMN grid_ibge.censo2010_info.pop_fem_perc IS 'Percentual da população feminina';
 COMMENT ON COLUMN grid_ibge.censo2010_info.dom_ocu IS 'Domicílios ocupados - particulares permanentes, particulares improvisados e coletivos';
+COMMENT ON COLUMN grid_ibge.censo2010_info.is_cache IS 'Indica que os dados não são originais da célula, são apenas totalizações em cache';
 
 ------
 
@@ -272,6 +273,11 @@ CREATE FUNCTION grid_ibge.gid_to_quadrante(gid bigint) RETURNS int AS $f$
   FROM ( SELECT grid_ibge.gid_to_xyLcenter(gid) ) t(xyL)
 $f$ LANGUAGE SQL IMMUTABLE;
 
+CREATE FUNCTION grid_ibge.gid_to_quadrante_text(gid bigint, prefix text DEFAULT 'ID_') RETURNS text AS $wrap$
+  SELECT prefix||lpad(grid_ibge.gid_to_quadrante(gid)::text,2,'0')
+$wrap$ LANGUAGE SQL IMMUTABLE;
+
+
 ------
 ---====== FIND CELL:
 
@@ -319,6 +325,16 @@ CREATE FUNCTION grid_ibge.geoURI_to_gid(geoURI text, L int DEFAULT 5) RETURNS bi
   FROM ( SELECT regexp_match(geoURI,'^geo:([+\-]?\d+\.?\d*),([+\-]?\d+\.?\d*)(?:;.+)?$') ) t1(p),
      LATERAL ( SELECT round((regexp_match(t1.p[3], 'u\s*=\s*(\d+\.?\d*)'))[1]::real)::int ) t2(u)
 $f$ LANGUAGE SQL IMMUTABLE;
+
+--------------
+-- future change to other lib, grid_ghs:
+CREATE FUNCTION grid_ibge.geoURI_to_geohash(geoURI text, digits int DEFAULT 9) RETURNS text AS $f$
+  SELECT ST_GeoHash(ST_SetSRID(ST_MakePoint(p[2]::float,p[1]::float),4326), digits)
+    -- digits: CASE WHEN u IS NOT NULL THEN uncertain_to_ghsdigits(u)) ELSE L END
+  FROM ( SELECT regexp_match(geoURI,'^geo:([+\-]?\d+\.?\d*),([+\-]?\d+\.?\d*)(?:;.+)?$') ) t1(p)
+     -- , LATERAL ( SELECT round((regexp_match(t1.p[3], 'u\s*=\s*(\d+\.?\d*)'))[1]::real)::int ) t2(u)
+$f$ LANGUAGE SQL IMMUTABLE;
+
 
 --=========
 --DROP  FUNCTION grid_ibge.draw_cell(int,int,int,boolean,int);
@@ -394,10 +410,15 @@ $f$ LANGUAGE SQL IMMUTABLE;
 
 -- DROP VIEW grid_ibge.vw_original_ibge_rebuild;
 CREATE VIEW grid_ibge.vw_original_ibge_rebuild AS
-  SELECT gid,
-         grid_ibge.gid_to_name(gid) AS id_unico, -- revisar
-         -- grid_ibge.gid_to_name(grid_ibge.search_gid_to_gid(gid,5)) 'nome_1km' AS nome_1km,  --revisar
-         --grid_ibge.gid_to_quadrante(gid) quadrante, -- revisar
+  SELECT gid, -- non-original
+         grid_ibge.gid_to_name(gid) AS id_unico,
+         grid_ibge.gid_to_name( grid_ibge.gid_to_gid(gid,5) ) AS nome_1km,
+         grid_ibge.gid_to_name( grid_ibge.gid_to_gid(gid,4) ) AS nome_5km,
+         grid_ibge.gid_to_name( grid_ibge.gid_to_gid(gid,3) ) AS nome_10km,
+         grid_ibge.gid_to_name( grid_ibge.gid_to_gid(gid,2) ) AS nome_50km,
+         grid_ibge.gid_to_name( grid_ibge.gid_to_gid(gid,1) ) AS nome_100km,
+         grid_ibge.gid_to_name( grid_ibge.gid_to_gid(gid,0) ) AS nome_500km,
+         grid_ibge.gid_to_quadrante_text(gid) quadrante,
          pop-fem AS masc,
          fem,
          pop,
@@ -407,13 +428,10 @@ CREATE VIEW grid_ibge.vw_original_ibge_rebuild AS
    SELECT *,
           ROUND(pop*pop_fem_perc::real/100.0)::int AS fem
    FROM grid_ibge.censo2010_info
+   WHERE NOT(is_cache) -- level>=5 as in original
   ) t
 ;
 -- para visualizar no QGIS precisa criar view de um só quadrante para não sobrecarregar.
-
-
-
-
 
 ------------------
 ------------------
@@ -421,16 +439,14 @@ CREATE VIEW grid_ibge.vw_original_ibge_rebuild AS
 
 CREATE SCHEMA IF NOT EXISTS API;
 
--- ?? search_cell, refazer pois agora é latLonL_to_xyLref
-/*
 CREATE FUNCTION api.resolver_geo_uri(geouri text) RETURNS JSONb AS $f$
  SELECT jsonb_build_object(
    'BR_IBGE_cell_L0_gid', cell_L0_gid,
-   'BR_IBGE_cell_quadrante', lpad( grid_ibge.gid_to_quadrante(cell_L5_gid)::text,2,'0' ),
+   'BR_IBGE_cell_quadrante', grid_ibge.gid_to_quadrante_text(cell_L5_gid),
    'BR_IBGE_cell_L5_gid', cell_L5_gid,
    'BR_IBGE_cell_L0',grid_ibge.gid_to_name( cell_L0_gid ),
    'BR_IBGE_cell_L5',grid_ibge.gid_to_name( cell_L5_gid ),
-   'geohash', ST_GeoHash(ST_SetSRID(ST_MakePoint(p[2]::float,p[1]::float),4326), 9),
+   'geohash', grid_ibge.geoURI_to_geohash(geoURI, 9),
    'BR_IBGE_cell_L5_censo2010', to_jsonb((
      SELECT jsonb_build_object( 'pop',pop,  'dom_ocu',dom_ocu, 'pop_fem_perc',pop_fem_perc, 'pop_masc_perc',100-pop_fem_perc )
      FROM grid_ibge.censo2010_info
@@ -438,10 +454,7 @@ CREATE FUNCTION api.resolver_geo_uri(geouri text) RETURNS JSONb AS $f$
     ))
    )
   FROM (
-   SELECT p, grid_ibge.search_cell(geouri,0) cell_L0_gid,
-          grid_ibge.search_cell(geouri,5) cell_L5_gid
-  FROM ( SELECT regexp_match(geoURI,'^geo:([+\-]?\d+\.?\d*),([+\-]?\d+\.?\d*)(?:;.+)?$') ) t1(p)
+    SELECT cell_L5_gid, grid_ibge.gid_to_gid(cell_L5_gid,0) AS cell_L0_gid
+    FROM ( SELECT grid_ibge.geoURI_to_gid(geouri,5) ) t1(cell_L5_gid)
   ) t2
 $f$ LANGUAGE SQL IMMUTABLE;
-
-*/
