@@ -13,6 +13,7 @@ CREATE or replace FUNCTION write_geojson_Features(
   p_cols text DEFAULT NULL, -- null or list of p_properties. Ex. 'id_unico,pop,pop_fem_perc,dom_ocu'
   p_cols_orderby text[] DEFAULT NULL,
   col_id text default null, -- p_id, expressed as t1.colName. Ex. 't1.gid::text'
+  p_pretty_opt int default 0, -- 0=no, 1=jsonb_pretty, 2=jsonb_pretty_lines(s,1), 3=jsonb_pretty_lines(s,2)
   p_decimals int default 6,
   p_options int default 0,  -- 0=better, 1=(implicit WGS84) tham 5 (explicit)
   p_name text default null,
@@ -37,24 +38,35 @@ RETURNS text LANGUAGE 'plpgsql' AS $f$
         $$,
         sql_geom, p_decimals::text, p_options::text,
         CASE WHEN col_id is null THEN 'NULL' ELSE 't1.'||col_id||'::text' END,
-        CASE WHEN p_cols is null THEN 'NULL' ELSE 'to_jsonb(t2)' END,
-        p_name, p_title, p_id_as_int,
+        CASE WHEN p_cols~'::jsonb?$' THEN regexp_replace(p_cols,'::jsonb?$','')
+             WHEN p_cols is null THEN 'NULL'
+             ELSE 'to_jsonb(t2)'
+        END,
+        COALESCE(p_name::text,'NULL'),
+        COALESCE(p_title::text,'NULL'),
+        COALESCE(p_id_as_int::text,'NULL'),
         sql_orderby
       );
       -- RAISE NOTICE '--- DEBUG sql_pre: %', sql_pre
       -- ex. 'ST_AsGeoJSONb( ST_Transform(t1.geom,4326), 6, 0, t1.gid::text, to_jsonb(t2) ) ORDER BY t1.gid'
+      -- EXECUTE
+      SELECT pg_catalog.pg_file_unlink(p_file)::text INTO sql;
       sql := format($$
         SELECT volat_file_write(
                 %L,
-                jsonb_build_object('type','FeatureCollection', 'features', gj)::text
+                %s( jsonb_build_object('type','FeatureCollection', 'features', gj) )
              )
         FROM (
           SELECT jsonb_agg( %s ) AS gj
           FROM %s t1 %s
         ) t3
        $$,
-       p_file, sql_pre, sql_tablename,
-       CASE WHEN p_cols IS NULL THEN '' ELSE ', LATERAL (SELECT '||p_cols||') t2' END
+       p_file,
+       CASE p_pretty_opt WHEN 1 THEN 'jsonb_pretty' WHEN 2 THEN 'jsonb_pretty_lines' ELSE '' END,
+       sql_pre, sql_tablename,
+       CASE WHEN p_cols IS NULL OR p_cols~'::jsonb?$' THEN ''
+            ELSE ', LATERAL (SELECT '||p_cols||') t2'
+       END
       );
       -- RAISE NOTICE E'--- DEBUG SQL: ---\n%\n', sql
       EXECUTE sql INTO msg;
@@ -64,7 +76,6 @@ $f$;
 COMMENT ON FUNCTION write_geojson_Features
   IS 'run file_write() dynamically to save specified relation as GeoJSON FeatureCollection.'
 ;
-
 
 -- GeoJSON complements:
 
