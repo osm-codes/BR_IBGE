@@ -1,3 +1,5 @@
+&nbsp; Atenção: git LFS. Para recuperar zip ou gz, [instlar git LFS](https://git-lfs.com/) antes de fazer o clone desse git.
+
 # Grade Estatística IBGE em Representação Compacta
 
 <img align="right" src="assets/BR_IBGE-articulacao.320px.png">
